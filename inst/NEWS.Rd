@@ -50,5 +50,8 @@
     \item Heavily modified function QCinfo
     \item Add an argument exSample to preprocessENmix
 }}
-
+\section{Version 1.4.1}{
+  \itemize{
+    \item Bugfix for parallel computing
+}}
 

@@ -8,7 +8,8 @@ Setting outliers as missing value. Outlier was defined as value smaller than 3 t
 }
 \usage{
 rm.outlier(mat,byrow=TRUE,qcscore=NULL,detPthre=0.05,nbthre=3,
-     rmcr=FALSE,rthre=0.05,cthre=0.05,impute=FALSE,imputebyrow=TRUE,...)
+           rmcr=FALSE,rthre=0.05,cthre=0.05,impute=FALSE,
+           imputebyrow=TRUE,...)
 }
 \arguments{
   \item{mat}{An numeric matirx}
@@ -19,7 +20,7 @@ rm.outlier(mat,byrow=TRUE,qcscore=NULL,detPthre=0.05,nbthre=3,
   \item{rmcr}{TRUE: excluded rows and columns with too many missing values as defined by rthre and cthre. FALSE is in default}
   \item{rthre}{Minimum of percentage of missing values for a row to be excluded}
   \item{cthre}{Minimum of percentage of missing values for a column to be excluded}
-  \item{impute}{Whether to impute missing values. If TRUE, k-nearest neighbors methods will used for imputation. FALSE is in default}
+  \item{impute}{Whether to impute missing values. If TRUE, k-nearest neighbors methods will used for imputation. FALSE is in default. Warning: imputed values for multimodal distributed CpGs may not be correct.}
   \item{imputebyrow}{TRUE: impute missing values using similar values in row, or FALSE: in column}
   \item{...}{Arguments to be passed to the function impute.knn in R package "impute"}
 }

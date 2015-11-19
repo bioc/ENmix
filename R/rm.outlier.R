@@ -57,15 +57,20 @@ rm.outlier <-function(mat,byrow=TRUE,qcscore=NULL,detPthre=0.05,nbthre=3,
     if(impute)
     {
         if(imputebyrow){mat=t(mat)}
-        impu_resu<-impute.knn(as.matrix(mat),k = 10, rowmax = 0.5, colmax = 0.8, maxp = 1500, rng.seed=362436069)
-        rowname=dimnames(mat)[[1]]
-        colname=dimnames(mat)[[2]]
-        mat=impu_resu$data
-        dimnames(mat)[[1]]=rowname
-        dimnames(mat)[[2]]=colname
+        resu=impute.knn(mat,...)
+
+	#error checking and imperfect fix
+	rg=apply(mat,2,function(x) range(x,na.rm=TRUE))
+	tmat=t(resu$data);gc()
+	idx=which(t(tmat<rg[1,] | tmat>rg[2,]),arr.ind = TRUE)
+	rm(tmat)
+	if(nrow(idx)>0){
+           m=apply(mat,2,function(x) mean(x,na.rm=TRUE))
+	   for(i in 1:nrow(idx)){resu$data[idx[i,1],idx[i,2]]=m[idx[i,2]]}
+        }
+	mat=resu$data
         if(imputebyrow){mat=t(mat)}
     }
-    return(mat)
+    mat
 }
-
 

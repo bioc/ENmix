@@ -16,14 +16,27 @@ bmiq.mc <-function(mdat,nCores=1,...)
     design.v[design.v == "I"]=1
     design.v[design.v == "II"]=2 
     design.v <- as.numeric(design.v)
+    coln=colnames(beta.b)
 
+    N=ceiling(ncol(beta.b)/(nCores*10))
+    parts=rep(1:N,each = ceiling(ncol(beta.b)/N))[1:ncol(beta.b)]
     c1 <- makeCluster(nCores)
     registerDoParallel(c1)
-    beta.o <- foreach (s = 1:ncol(beta.b),.combine=cbind,.export=c("BMIQ"))  %dopar%{
-    s=s;out <- BMIQ(beta.b[, s], design.v, plots = FALSE,sampleID = colnames(beta.b)[s],...)
-        return(out$nbeta)
+    for(i in 1:N){
+        id=which(parts==i)
+        beta.b1=beta.b[,id]
+
+        beta.b1 <- foreach (s = 1:ncol(beta.b1),.combine=cbind,.export=c("BMIQ"))  %dopar%{
+            s=s;out <- BMIQ(beta.b1[, s], design.v=design.v, plots = FALSE,...)
+            out$nbeta
+        }
+        beta.b[,id]=beta.b1
     }
     stopCluster(c1)
-    colnames(beta.o) <- colnames(beta.b)
-    beta.o
+    if(is.matrix(beta.b)){if(sum(is.na(beta.b))>0){stop("Computation ran out of memory, try to set
+        nCores with a smaller value")}}else{
+         stop("Computation ran out of memory, try to set nCores with a smaller value")}
+    colnames(beta.b) <- coln
+    beta.b
 }
+
