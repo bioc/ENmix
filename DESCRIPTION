@@ -1,5 +1,5 @@
 Package: ENmix
-Version: 1.12.3
+Version: 1.12.4
 Date: 2017-05-17
 Title: Data preprocessing and quality control for Illumina
    HumanMethylation450 and MethylationEPIC BeadChip
@@ -32,7 +32,7 @@ Description: The ENmix package provides a set of quality control and data
     statistical analysis; and an efficient algorithm oxBS-MLE to estimate
     5-methylcytosine and 5-hydroxymethylcytosine level.
 Depends: parallel,doParallel,foreach,
-         SummarizedExperiment (>= 1.1.6), minfi (>= 1.22.0)
+         SummarizedExperiment (>= 1.1.6),minfi (>= 1.22.0)
 Imports: MASS,preprocessCore,wateRmelon,sva,geneplotter,impute,grDevices,graphics,stats
 Suggests: minfiData (>= 0.4.1), RPMM, RUnit, BiocGenerics
 biocViews: DNAMethylation, Preprocessing, QualityControl, TwoChannel, Microarray,
