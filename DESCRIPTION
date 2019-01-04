@@ -1,5 +1,5 @@
 Package: ENmix
-Version: 1.18.0
+Version: 1.18.1
 Date: 2017-09-05
 Title: Data preprocessing and quality control for Illumina
    HumanMethylation450 and MethylationEPIC BeadChip
@@ -35,7 +35,7 @@ Depends: parallel,doParallel,foreach,
          SummarizedExperiment (>= 1.1.6),minfi (>= 1.22.0)
 Imports: MASS,preprocessCore,wateRmelon,sva,geneplotter,impute,grDevices,graphics,stats
 Suggests: minfiData (>= 0.4.1), RPMM, RUnit, BiocGenerics
-biocViews: DNAMethylation, Preprocessing, QualityControl, TwoChannel, Microarray,
+biocViews: ImmunoOncology, DNAMethylation, Preprocessing, QualityControl, TwoChannel, Microarray,
     OneChannel, MethylationArray, BatchEffect, Normalization, DataImport,
     Regression, PrincipalComponent,Epigenetics, MultiChannel, DifferentialMethylation
 License: Artistic-2.0
