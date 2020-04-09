@@ -112,5 +112,8 @@
   \itemize{
     \item removed function bmiq.mc and ComBat.mc 
 }}
-
+\section{Version 1.22.6}{
+  \itemize{
+    \item add function: combp,ipdmr,mhtplot,p.qqplot 
+}}
 
