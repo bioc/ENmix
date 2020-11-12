@@ -28,6 +28,8 @@ importFrom(genefilter,rowFtests,rowttests)
 importFrom(gplots,heatmap.2)
 importFrom(quadprog,solve.QP)
 importFrom(irr,icc)
+importFrom(wateRmelon,BMIQ)
+importFrom(sva,ComBat)
 
 exportClasses(rgDataSet,methDataSet)
 
