@@ -19,17 +19,22 @@ options(width=70)
 \newcommand{\Robject}[1]{{\texttt{#1}}}
 
 \title{The \Rpackage{ENmix} User's Guide}
+\author{Zongli Xu, Liang Niu and Jack A Taylor}
 
 \date{Modified: October 9 2020.  Compiled: \today}
 \begin{document}
 \maketitle
 
+
+\tableofcontents
+\newpage
+
 \section{Introduction}
 
-The \Rpackage{ENmix} package provides a set of quality control and data 
-analysis tools for Illumina  
-HumanMethylation450 and MethylationEPIC Beadchips. It includes ENmix background 
- correction, RELIC dye bias correction, RCP probe-type bias adjustment, 
+The \Rpackage{ENmix} package provides a set of quality control,
+preprocessing/correction and data analysis tools for Illumina  
+Methylation Beadchips. It includes functions to read in raw idat data, 
+background correction, dye bias correction, probe-type bias adjustment, 
  along with a number of additional tools.
 These functions can be used to remove unwanted experimental noise and thus to
 improve accuracy and reproducibility of methylation measures. 
@@ -37,7 +42,7 @@ improve accuracy and reproducibility of methylation measures.
 are flexible and transparent. Users have option to choose a single pipeline 
 command to finish all data pre-processing steps (including quality control, 
 background correction, 
-dye-bias adjustment, inter-array normalization and probe-type bias correction) or 
+dye-bias adjustment, between-array normalization and probe-type bias correction) or 
 to use individual functions sequentially to perform data pre-processing in a more 
 customized manner. In addition the \Rpackage{ENmix} package has selectable 
 complementary functions for efficient data visualization (such as QC plots, data 
@@ -89,8 +94,12 @@ Xu Z, Taylor JA. Reliability of DNA methylation measures using
 Illumina methylation BeadChip. Epigenetics 2020
 
 Xu Z, Xie C, Taylor JA, Niu L. 
-ipDMR: Identification of differentially methylated regions with interval P values
+ipDMR: Identification of differentially methylated regions with interval P values.
 Bioinformatics, 2020
+
+Xu Z, Niu L, Taylor JA.
+ENmix: a comprehensive R package for the analysis of Illumina DNA methylation arrays.
+in review
 
 \section{List of functions}
 
@@ -109,6 +118,7 @@ getCGinfo  & Extract CpG probe annotation information \\
 calcdetP   & Compute detection P values   \\
 rm.outlier & Remove low quality values, samples or CpGs; \\
            & remove outlier samples and perform imputation  \\
+QCfilter   & Sample, CpG, low quality data filter  \\
 nmode   & Identify gap probes   \\
 dupicc     & Calculate ICC with data for duplicates  \\
 freqpoly & Frequency polygon plot for single variable   \\
@@ -144,13 +154,50 @@ M2B        &  Convert M value to Beta value  \\
 
 \section{Example Analysis}
 
-\subsection{Example 1: using pipeline }
+ENmix functions are easy to run. The following examples demonstrate how to 
+perform a typical QC and data-preprocessing, as well as in depth methylation
+analyses. 
 
-Pipeline function \Rfunction{mpreprocess} can be used to perform background 
-correction, dye-bias adjustment, inter-array normalization, probe-type bias 
-correction and quanlity control in a single step. 
 
-<<example, eval=FALSE>>=
+\subsection{Example 1: using pipeline}
+
+The pipeline function \Rfunction{mpreprocess} can be used to perform quality 
+control and data preprocessing in just two sentences. 
+
+<<example0, eval=FALSE>>=
+rgSet <- readidat(datapath)
+beta=mpreprocess(rgSet)
+@
+
+These two sentences can achieve the following tasks:
+
+\begin{itemize}
+  \item  Read in raw idat files
+  \item  Data preprocessing
+\begin{itemize}
+  \item background correction
+  \item dye-bias correction
+  \item between-array normalization
+  \item probe-type bias adjustment
+\end{itemize}
+  \item Quality control
+\begin{itemize}
+  \item Identify and exclude low quality probes
+  \item Identify and exclude low quality samples
+  \item Identify and exclude outlier samples
+  \item Remove low quality and outlier data points
+  \item Imputation of missing values
+\end{itemize}
+  \item Visualization
+\begin{itemize}
+  \item Data distribution plots before and after low quality sample removal
+  \item Plots of quality controls measures (detp, bisulfite) to guide selection of thresholds
+\end{itemize}
+\end{itemize}
+
+The following is an executable example.
+
+<<example1, eval=FALSE>>=
 library(ENmix)
 #read in data
 require(minfiData)
@@ -169,7 +216,7 @@ beta=mpreprocess(rgSet,nCores=6,qc=TRUE,foutlier=TRUE,
 The example code below is basically doing the same thing as in example 1, but 
 has more customized options. 
 
-<<example, eval=FALSE>>=
+<<example2, eval=FALSE>>=
 library(ENmix)
 #read in data
 path <- file.path(find.package("minfiData"),"extdata")
@@ -181,7 +228,7 @@ qc<-QCinfo(rgSet)
 # and probes will be excluded before background correction
 mdat<-preprocessENmix(rgSet, bgParaEst="oob", dyeCorr="RELIC", 
                      QCinfo=qc, nCores=6)
-#inter-array normalization
+#between-array normalization
 mdat<-norm.quantile(mdat, method="quantile1")
 #probe-type bias adjustment
 beta<-rcp(mdat,qcscore=qc)
@@ -195,12 +242,12 @@ beta <- rm.outlier(beta,qcscore=qc,rmcr=TRUE,impute=TRUE)
 
 This example is to demonstrate the flexibility of the package functions. 
 Getting detailed information about data quality, SNP-like probes, excluding 
-user specified probes and/or samples, principal component regression analysis,
+user-specified probes and/or samples, principal component regression analysis,
 low quality or outlier sample or probe removal, sex prediction, 
 cell type proportion estimation, methylation age estimation, differentially 
 methylated region analysis and surrogate variables, etc. 
 
-<<example, eval=FALSE>>=
+<<example3, eval=FALSE>>=
 library(ENmix)
 #read in data
 path <- file.path(find.package("minfiData"),"extdata")
@@ -226,7 +273,7 @@ qc<-QCinfo(rgSet,detPtype="negative",detPthre=0.000001)
 #background correction and dye bias correction
 mdat<-preprocessENmix(rgSet, bgParaEst="oob", dyeCorr="RELIC",
                       QCinfo=qc, nCores=6)
-#inter-array normalization
+#between-array normalization
 mdat<-norm.quantile(mdat, method="quantile1")
 #attach phenotype data for later use
 colData(mdat)=as(sheet[colnames(mdat),],"DataFrame")
@@ -242,6 +289,9 @@ nmode<-nmode(beta, minN = 3, modedist=0.2, nCores = 6)
 #Imputation will be performed to fill missing data if specify.
 beta <- rm.outlier(beta,qcscore=qc,rmcr=TRUE, rthre=0.05,
                    cthre=0.05,impute=TRUE)
+
+#If for epigenetic mutation analysis, use QCfilter instead
+beta<-QCfilter(beta,qcinfo=qc,rmlowq=TRUE)
 
 ##Principal component regression analysis plot
 #phenotypes to be studied in the plot
@@ -284,23 +334,23 @@ combp(data=dat,seed=0.1)
 The first step is to import array raw data files (*.idat)
  to create an object of \Robject{rgDataSet}, which is similar to 
 \Robject{RGChannelSetExtended} in minfi package, but with probe annotation 
-integrated, and having smaller data size (about 1/3 smaller). User can also 
+integrated, and having smaller data size (about 1/3 smaller). Alternatively, User can also 
 use minfi package to read in idat files and create 
 \Robject{RGChannelSetExtended}. Most functions in ENmix support 
 \Robject{RGChannelSetExtended} and \Robject{RGChannelSet}.
 
-<<UnevaluatedCode, eval=FALSE>>=
+<<readdata, eval=FALSE>>=
 library(ENmix)
 rgSet <- readidat(path = "directory path for idat files", 
                  recursive = TRUE)
 @
 
 When methylation IDAT raw data files are not available, such as in many
- publically available datasets, users can use methylated (M) and unmethylated
+ publicly available datasets, users can use methylated (M) and unmethylated
  (U) intensity data to create an object of \Robject{MethylSet}. \Robject{MethylSet}
 is also supported by most functions in ENmix.
 
-<<UnevaluatedCode, eval=FALSE>>=
+<<readdata2, eval=FALSE>>=
 M<-matrix_for_methylated_intensity
 U<-matrix_for_unmethylated_intensity
 pheno<-as.data.frame(cbind(colnames(M), colnames(M)))
@@ -376,7 +426,7 @@ These controls can be plotted in user specified order to check
 how experimental factors affect methylation measures, such as batch,
  plate, array or array location.
 
-<<ctrlplot, eval=FALSE>>=
+<<ctrlplot2, eval=FALSE>>=
 
 path <- file.path(find.package("minfiData"),"extdata")
 rgSet <- readidat(path = path,recursive = TRUE)
@@ -390,7 +440,7 @@ IDorder=rownames(colData(rgSet))[order(colData(rgSet)$Slide,
 plotCtrl(rgSet,IDorder)
 @
 
-\subsection{Data distribution}
+\subsection{Data distribution plots}
 
 Methylation intensity or beta value distribution plots are 
 very useful for data summary, visual inspection and identification of 
@@ -404,7 +454,7 @@ distribution. Similar to histogram, it can accurately reflect data distribution 
 easy to understand. The function is also much faster, and only takes a few
 minutes to produce a distribution plot for >1000 samples. 
 
-<<ctrlplot, eval=FALSE>>=
+<<distplot, eval=FALSE>>=
 
 mraw <- getmeth(rgSet)
 #total intensity plot is userful for data quality inspection
@@ -449,7 +499,7 @@ multifreqpoly plots (panels on right)}
 \label{fig:dist}
 \end{figure}
 
-\subsection{QC information, flag outlier samples, low quality samples and probes}
+\subsection{QC information, outlier samples, low quality samples and probes}
 Data quality measures, including detection P values, average intensities for 
 bisulfite conversion probes and number of 
 beads for each methylation read 
@@ -473,7 +523,7 @@ qc<-QCinfo(rgSet)
 mdat<-preprocessENmix(rgSet, QCinfo=qc, nCores=6)
 @
 
-\subsection{Filtering out outliers and low quality data points}
+\subsection{Filtering outliers, low quality data points, missing values and imputation}
 After excluding low quality samples and probes, as well as outlier samples.
 we can still have many low quality and outlier data points for many CpGs.
 These small percentage of data points can have big impact on downstream 
@@ -482,10 +532,11 @@ Function \Rfunction{rm.outlier} can be used to filter out these
 data points and replace them as missing values. Outliers are defined as 
 values smaller than 3 times IQR from the lower quartile or larger than 
 3 times IQR from the upper quartile. Some statistical methods do not allow 
-missing values, argument \textit{impute=TRUE} in the function can be 
+missing values,(e.g. principal component analysis), so 
+ argument \textit{impute=TRUE} in the function can be 
 specified to impute missing data using k-nearest neighbors method. 
 
-<<preprocessENmix, eval=FALSE>>=
+<<rmoutlier, eval=FALSE>>=
 #filter out outliers only
 b1=rm.outlier(beta)
 #filter out low quality and outlier values
@@ -501,7 +552,7 @@ b3=rm.outlier(beta,qcscore=qc,rmcr=TRUE,rthre=0.05,
 @
 
 \section{Background correction and dye-bias correction}
-Function \Rfunction{preprocessENmix} incorporates a model based background
+Function \Rfunction{preprocessENmix} incorporates a model-based background
  correction method \textit{ENmix}, which models methylation signal intensities 
 with a flexible exponential-normal mixture distribution, together
  with a truncated normal distribution to model background noise. 
@@ -536,7 +587,7 @@ normalization on methylation intensity values.
 mdat<-norm.quantile(mdat, method="quantile1")
 @
 
-\section{Probe type bias adjustment}
+\section{Probe-type bias adjustment}
 The majority of probes on Illumina 450K and EPIC BeadChips are type II probes.
  Although type II probes facilitate increased array genome coverage, they were
  shown to have decreased dynamic range and reproducibility compared to type I
@@ -559,8 +610,8 @@ BeadChip. Bioinformatics, 2016
 \section{Batch effect correction}
 
 Function \Rfunction{ctrlsva} can be used to estimate surrogate variables for batch 
-effect and unknown experimental confounders from intensity data for non-negative 
-internal control probes. These variables can be modeled as covariables in 
+effects and unknown experimental confounders using intensity data for non-negative 
+internal control probes. These surrogate variables can then be modeled as covariables in 
 downstream association analysis to adjust for experimental variation.
 
 <<ctrlsva, eval=FALSE>>=
@@ -568,15 +619,16 @@ sva<-ctrlsva(rgSet)
 @
 
 \section{Principal component regression analysis plot}
-First, principal component analysis will be performed in standardized beta value 
+First, principal component analysis will be performed on the standardized beta value 
 matrix (standardized probe by probe), and then the specified number of top 
 principal components (that explain most data variation) will be used to perform
-linear regression with each specified variables, such as batch or phnotype
+linear regression with each specified variables, such as batch or phenotype
 variables. Regression P values will be 
 plotted to explore methylation data variance structure and to identify possible
  confounding variables to guide association statistical analysis. Principal 
-components were ordered according to the percentage of variace they explained 
-from large to small. 
+components are ordered according to the percentage of variance they explained 
+from large to small. PCA will not allow for missing values, so specify impute=true 
+in preprocessing if there is missing data.
 
 <<pcrplot, eval=FALSE>>=
 require(minfiData)
@@ -595,11 +647,11 @@ generated using 450K methylation data from a published study}
 \label{fig:pcrdiag}
 \end{figure}
 
-\section{Multimodal CpGs and gap probes}
+\section{Multimodal CpGs or gap probes}
 
 Function \Rfunction{nmode} uses an empirical approach to identify
- multimodal distributed CpGs (SNP like probes). When measured in a
-population of people
+CpGs whose methylation values are multimodal distributed 
+(SNP-like or gap probes). When measured in a population of people
  the majority of CpGs on the Illumina HumanMethylation450 BeadChip have
  unimodal distributions of DNA methylation values with relatively small
  between-person variation. However, some CpGs may have multimodal
@@ -609,12 +661,14 @@ population of people
 These multimodal distributed
 data are usually caused by SNP effect in the probe region, 
 problematic probe design or
-other unknown artifacts instead of actual methylation level and thus
+other unknown artifacts rather than by actual difference in methylation 
+level and thus
 should be excluded from DNA methylation analysis. Researchers
- have often excluded CpGs based on SNP annotation information. However,
-because SNP annotation always depends on population origin, we found
+ have often excluded CpGs based simply on SNP annotation information
+(e.g. reported SNPs in or near probe sequences). However,
+because SNP frequence and annotation always depends on population origin, we find
  that this approach alone may exclude many well-distributed (unimodal)
- CpGs, while still failing to identify other multi-modal CpGs. We developed
+ CpGs, while still failing to identify other problematic multi-modal CpGs. We developed
  an empirical approach to identify CpGs that are obviously not uni-modally
  distributed,
  so that researchers can make more informed decisions about whether to
@@ -633,18 +687,18 @@ nmode<- nmode(beta, minN = 3, modedist=0.2, nCores = 5)
 
 \section{Cell type proportion estimation}
 
-Whole blood samples are often used in the EWAS, however, whole blood has 
+Whole blood samples are often used in EWAS, however, whole blood has 
 mixed cell types and methylation level can be widely different between 
 different cell types. Function \Rfunction{estimateCellProp} can be used 
 to estimate cell types based on reference dataset. Users should select 
 a reference that is most resemble to their own study samples. Currently 
-there are 6 publically deposited reference datasets: 
+there are 6 publicly deposited reference datasets: 
 "FlowSorted.Blood.450k",
      "FlowSorted.DLPFC.450k","FlowSorted.CordBlood.450k",
      "FlowSorted.CordBloodCombined.450k",
      "FlowSorted.CordBloodNorway.450k" or "FlowSorted.Blood.EPIC". 
 
-<<nmode, eval=FALSE>>=
+<<celltype, eval=FALSE>>=
 require(minfidata)
 path <- file.path(find.package("minfiData"),"extdata")
 #based on rgDataset
@@ -663,12 +717,12 @@ or methylation beta value matrix.
 
 \section{Methylation age estimation}
 
-Methylation age can reflect a person's biological age, which is more
+Methylation age can reflect a person's biological age, which may be more
 related to the person's health status than chronological age. Three 
 different types of methylation age can be estimated using 
-\Rfunction{methyAge}. They are Horvath, Hannum and PhenoAge. 
+\Rfunction{methyAge}: Horvath, Hannum and PhenoAge. 
 
-<<nmode, eval=FALSE>>=
+<<mage, eval=FALSE>>=
 require(minfidata)
 path <- file.path(find.package("minfiData"),"extdata")
 #based on rgDataset
@@ -678,38 +732,39 @@ beta=getB(meth)
 mage=methyAge(beta)
 @
 
-\section{Differentially methylated regions}
+\section{Differentially methylated regions (DMRs)}
 
 EWAS is usually done probe by probe. However, in the human genome, nearby 
 CpGs often have similar methylation status, so combined statistics from nearby 
-CpGs can potentially increase association signal. Function \Rfunction{ipdmr} and 
+CpGs can potentially increase association signal. Functions \Rfunction{ipdmr} and 
 \Rfunction{combp} can utilize P values from EWAS to identify 
-differentialy methylated regions (DMR). Argument "seed" in these two functions
-indicate the FDR threshold for initial selection of DMR regions, but we want to
+differentially methylated regions (DMRs). The argument "seed" in these two functions
+indicate the FDR threshold for initial selection of DMR regions, but we
 note that same value of seed do not appear to have the same effect in these 
-two functions. It is often more stringent in ipdmr than combp. We found in 
-450K data simulations, ipdmr with seed of 0.05 and combp with seed of 0.01 
-resulted in similar true positive rate and false discovery rate. There is 
-no true DMR in the following example data, we set high seed threshold is only 
+two functions. It is often more stringent in ipdmr than combp. 
+
+There is 
+no true DMR in the following example data, we set less strengent seed threshold is only 
 for demostration purpose to show what the output looks like when DMRs were
 detected.
 
-<<nmode, eval=FALSE>>=
+<<dmr, eval=FALSE>>=
 dat=simubed()
 names(dat)
 ipdmr(data=dat,seed=0.1)
 combp(data=dat,seed=0.1)
 @
 
-\section{Intraclass correlation}
+\section{Intraclass correlation coefficient (ICC) reliability measures}
 
-Several studies showed that a large percentage of CpGs on Illumina array
-have poor reliability, which means low correlation between replicate meansures 
-of a same set of samples. Measurement reliability can be reflected by intraclass
- correlation calculated in methylation data of duplicates. Function 
-\Rfunction{dupicc} can be used for the purpose. 
+Several studies have showen that a large percentage of CpGs on Illumina arrays
+have poor reliability, i.e. they have low correlation between replicate measures 
+in a same set of samples. Measurement of the reliability of individual CpGs 
+can be assessed by calculating intraclass
+ correlation coefficients (ICC) using methylation from duplicate samples. Function 
+\Rfunction{dupicc} can be used for this purpose. 
 
-<<nmode, eval=FALSE>>=
+<<icc, eval=FALSE>>=
 require(minfiData)
 path <- file.path(find.package("minfiData"),"extdata")
 rgSet <- readidat(path = path,recursive = TRUE)
@@ -733,9 +788,9 @@ separate estimation. Bisulfite converted DNA can be used to estimate the proport
 of 5mC+5hmC and oxidative bisulfite (oxBS) converted DNA can be used to estimate
  the proportion of 5mC. Function \Rfunction{oxBS.MLE} can be used to generate the 
 maximum Likelihood Estimate (MLE) of 5mC and 5hmC using sequencing or array data from
- paired experiments.
+ paired experiments (Xu et al. Bioinformatics 2016).
 
-<<nmode, eval=FALSE>>=
+<<oxbs, eval=FALSE>>=
 load(system.file("oxBS.MLE.RData",package="ENmix"))
 resu<-oxBS.MLE(beta.BS,beta.oxBS,N.BS,N.oxBS)
 dim(resu[["5mC"]])
@@ -836,6 +891,10 @@ BMC bioinformatics (2012) 13:86.
 Heiss JA, Allan C Just. Improved filtering of DNA methylation microarray 
 data by detection p values and its impact on downstream analyses.
 Clinical Epigenetics, 2019
+
+Xu Z, Niu L, Taylor JA.
+ENmix: a comprehensive R package for the analysis of Illumina DNA methylation arrays.
+in review
 
 \end{document}
 
