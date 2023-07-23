@@ -51,7 +51,13 @@ cAge_CpG=bAge_CpG=EpiToc_CpGs=MiAgedat=methscore_dict=NULL
 #load in all model and reference data
 load(system.file("mage_ref.RData",package="ENmix"))
 load(system.file("mPOA_Models.RData",package="ENmix"))
-load(system.file("pcclock_model.RData",package="ENmix"))
+#load(system.file("pcclock_model.RData",package="ENmix"))
+pcc1=pcc2=pcc3=pcc4=NULL
+load(system.file("pcclock_model1.RData",package="ENmix"))
+load(system.file("pcclock_model2.RData",package="ENmix"))
+load(system.file("pcclock_model3.RData",package="ENmix"))
+load(system.file("pcclock_model4.RData",package="ENmix"))
+pcc=c(pcc1,pcc2,pcc3,pcc4)
 
 #check whether datMeth probe names include suffix, such as in EPICv2 array
 if(sum(as.vector(refmeth$cg) %in% rownames(datMeth))<50){datMeth=rm.cgsuffix(datMeth)}
