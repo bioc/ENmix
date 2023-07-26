@@ -1,7 +1,7 @@
 Package: ENmix
 Type: Package
 Title: Quality control and analysis tools for Illumina DNA methylation BeadChip
-Version: 1.36.02
+Version: 1.36.03
 Authors@R:
   c(person("Zongli","Xu",email="xuz@niehs.nih.gov",role=c("cre","aut")),
     person("Liang", "Niu", role="aut",email="niulg@ucmail.uc.edu"),
@@ -24,6 +24,6 @@ Encoding: UTF-8
 URL: https://github.com/Bioconductor/ENmix
 BugReports: https://github.com/Bioconductor/ENmix/issues
 git_url: https://git.bioconductor.org/packages/ENmix
-Date/Publication: 2023-03-01
+Date/Publication: 2023-07-25
 NeedsCompilation: no
-Packaged: 2023-06-13 17:58:04 UTC; xuz
+Packaged: 2023-07-25 17:58:04 UTC; xuz
