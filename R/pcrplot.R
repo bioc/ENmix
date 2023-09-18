@@ -40,7 +40,7 @@ plotp<-function(jpgfile,p,yaxis,xmax,title)
     dev.off()
 }
 
-pcrplot2<-function(beta,cov,npc=50)
+pcrplot<-function(beta,cov,npc=50)
 {
     if(!is.matrix(beta)){stop("beta is not a data matirx")}
     if(!is.data.frame(cov)){stop("cov is not a data frame")}
@@ -50,7 +50,7 @@ pcrplot2<-function(beta,cov,npc=50)
     npc <- min(ncol(beta),npc)
 
 #    library("irlba")
-    svd<- prcomp_irlba(t(beta), n=npc, center=TRUE,scale=TRUE,retx=TRUE)
+    svd<- prcomp_irlba(t(beta), n=npc, center=TRUE,scale.=TRUE,retx=TRUE)
     jpeg(filename="svdscreeplot.jpg",width=1000,height=500,quality = 100)
     screeplot(svd,npc,type="barplot")
     dev.off()
