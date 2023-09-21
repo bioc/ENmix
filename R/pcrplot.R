@@ -55,9 +55,8 @@ pcrplot<-function(beta,cov,npc=50)
     screeplot(svd,npc,type="barplot")
     dev.off()
     cat("svdscreeplot.jpg was plotted","\n")
-    eigenvalue <- svd[["sdev"]]**2
-    prop <- (sum(eigenvalue[1:npc])/min(nrow(beta),ncol(beta)))*100
-    cat("Top ",npc," principal components can explain ", prop, "% of data
+    prop=summary(svd)$importance["Cumulative Proportion", npc]*100
+    cat("Top ",npc," principal components explain ", prop, "% of data
     variation","\n")
     p <- lmmatrix(svd$x[,1:npc],cov)
     yaxis <- colnames(p)
