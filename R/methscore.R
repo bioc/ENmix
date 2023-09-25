@@ -27,7 +27,7 @@ datMeth=datMeth[!rowSums(is.na(datMeth))==ncol(datMeth),]
 #if datMeth is a vector, convert it to a matrix
 if(is.vector(datMeth)){datMeth=as.matrix(datMeth)}
 
-if(!is.null(datPheno)){
+if(is.null(datPheno)){ stop("Error: datPheno is missing.")} else {
   if(!("Age" %in% colnames(datPheno))){
     stop("Error: datPheno must have a column named Age")
   }
