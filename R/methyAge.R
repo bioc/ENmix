@@ -15,6 +15,7 @@ hannum=data.frame()
 phenoage=data.frame()
 
 load(system.file("mage_ref.RData",package="ENmix"))
+names(refmeth)[which(names(refmeth)=="meth_mean")]="goldstandard"
 #load(system.file("mPOA_Models.RData",package="ENmix"))
 PACE=DunedinPACE(betas=beta, proportionOfProbesRequired = 0.8)
 

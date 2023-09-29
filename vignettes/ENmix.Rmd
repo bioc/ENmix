@@ -109,6 +109,7 @@ The software is designed to support large scale data analysis, and provides
 <li>`oxBS.MLE()`:  MLE estimates of 5-methylcytosine (5mC) and 5-hydroxymethylcytosine (5hmC)</li>
 <li>`estimateCellProp()`:    Estimate white blood cell type proportions</li>
 <li>`methyAge()`:     Calculate methylation age</li>
+<li>`methscore()`:    calculate various methylation predictors, including DNA methylation age, exposures and plasma protein levels.</li>
 <li>`predSex()`:      Estimate sample sex</li>
 <li>`ctrlsva()`:      Derive surrogate variables to control for experimental confounding using non-negative internal control probes</li>
 <li>`pcrplot()`:      Principal component regression plot </li>

@@ -28,6 +28,7 @@ datMeth=datMeth[!rowSums(is.na(datMeth))==ncol(datMeth),]
 if(is.vector(datMeth)){datMeth=as.matrix(datMeth)}
 
 if(is.null(datPheno)){ stop("Error: datPheno is missing.")} else {
+  datPheno=as.data.frame(datPheno)
   if(!("Age" %in% colnames(datPheno))){
     stop("Error: datPheno must have a column named Age")
   }
