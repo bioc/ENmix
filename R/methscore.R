@@ -64,7 +64,7 @@ pcc=c(pcc1,pcc2,pcc3,pcc4)
 if(sum(as.vector(refmeth$cg) %in% rownames(datMeth))<50){datMeth=rm.cgsuffix(datMeth)}
 
 #combine reference CpG
-#normalize to Hovath refmeth before combine
+#normalize to Horvath refmeth before combine
 refcg=as.vector(refmeth$cg)
 refcg=unique(c(refcg,as.vector(mPOA_Models$gold_standard_probes)))
 refcg=unique(c(refcg,as.vector(episcore_model$CpG_Site)))
@@ -96,7 +96,7 @@ if(!fastImputation){
 missedcg=NULL
 cgcheck=data.frame(predictor=NA,nCpG_required=NA,nCpG_present=NA,nCpG_missing=NA)
 np=1
-cgcheck[np,1]="HovathAge";cgcheck[np,2]=nrow(hovath)-1;cgcheck[np,3]=sum(as.vector(hovath$cg) %in% rownames(datMeth))
+cgcheck[np,1]="HorvathAge";cgcheck[np,2]=nrow(horvath)-1;cgcheck[np,3]=sum(as.vector(horvath$cg) %in% rownames(datMeth))
 np=np+1
 cgcheck[np,1]="PhenoAge";cgcheck[np,2]=nrow(phenoage)-1;cgcheck[np,3]=sum(as.vector(phenoage$cg) %in% rownames(datMeth))
 np=np+1
@@ -200,7 +200,7 @@ anti.trafo= function(x,adult.age=20) { ifelse(x<0, (1+adult.age)*exp(x)-1, (1+ad
 message("Calculating methylation scores ...")
 mScore=data.frame(SampleID=colnames(datMeth))
 
-modelcg=unique(c(as.vector(hovath$cg[-1]),as.vector(phenoage$cg[-1]),as.vector(hannum$cg)))
+modelcg=unique(c(as.vector(horvath$cg[-1]),as.vector(phenoage$cg[-1]),as.vector(hannum$cg)))
 missedcg=modelcg[!(modelcg %in% rownames(datMeth))]
 refdat=refmeth;names(refdat)=c("cg","meth_mean")
 #If user provied reference data include all modelcg, then use UserRef
@@ -209,16 +209,16 @@ if(!is.null(UserRef) & ForceUserRef){
     if(length(tmp)==0){refdat=UserRef}else{
             message(paste0("The following model required CpGs are missing in UserRef:"))
             message(paste0(tmp,collaps=" "))
-            message("System reference were used for HovathAge,mAge_Hannum,PhenoAge")
+            message("System reference were used for HorvathAge,mAge_Hannum,PhenoAge")
     }
 }
 datMeth2=norm_imputing(datMeth,refdat=refdat,normalize,missedcg)
 
-#HovathAge
-intercept=hovath$coef[hovath$cg=="(Intercept)"]
-hovath=hovath[as.vector(hovath$cg) %in% rownames(datMeth2),]
-mAge=anti.trafo(colSums(as.numeric(hovath$coef) * datMeth2[as.vector(hovath$cg),],na.rm=T)+intercept)
-mScore$HovathAge=mAge[as.vector(mScore$SampleID)]
+#HorvathAge
+intercept=horvath$coef[horvath$cg=="(Intercept)"]
+horvath=horvath[as.vector(horvath$cg) %in% rownames(datMeth2),]
+mAge=anti.trafo(colSums(as.numeric(horvath$coef) * datMeth2[as.vector(horvath$cg),],na.rm=T)+intercept)
+mScore$HorvathAge=mAge[as.vector(mScore$SampleID)]
 #Hannum Age
 hannum=hannum[hannum$cg %in% rownames(datMeth2),]
 mAge=colSums(hannum$coef * datMeth2[as.vector(hannum$cg),],na.rm=T)
