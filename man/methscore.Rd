@@ -7,7 +7,8 @@ DNA Methylation predictors
 To calculate various methylation predictors, including DNA methylation age, plasma protein levels, exposures etc.
 }
 \usage{
-methscore(datMeth,datPheno=NULL,fastImputation=FALSE,normalize=TRUE,GrimAgeComponent=NULL,UserRef=NULL,ForceUserRef=FALSE)
+methscore(datMeth,datPheno=NULL,fastImputation=FALSE,normalize=TRUE,
+	  GrimAgeComponent=NULL,UserRef=NULL,ForceUserRef=FALSE)
 }
 \arguments{
   \item{datMeth}{Methylation beta value matrix with CpG names(row names) and sample ids(column names).}
@@ -17,14 +18,24 @@ methscore(datMeth,datPheno=NULL,fastImputation=FALSE,normalize=TRUE,GrimAgeCompo
   \item{normalize}{TRUE or FALSE, if TRUE, user data will be normalized to a reference data using a modified RCP method}
   \item{GrimAgeComponent}{A data frame of grimage component from methylation age online calculator 
 	  (https://dnamage.clockfoundation.org/user/login). It must include the following variables:
-	 ("SampleID","DNAmADM", "DNAmB2M", "DNAmCystatinC", "DNAmGDF15", "DNAmLeptin", "DNAmPACKYRS", "DNAmPAI1", "DNAmTIMP1","DNAmGrimAge"). 
+	 ("SampleID","DNAmADM", "DNAmB2M", "DNAmCystatinC", 
+	 "DNAmGDF15", "DNAmLeptin", "DNAmPACKYRS", "DNAmPAI1",
+	 "DNAmTIMP1","DNAmGrimAge"). 
          If the file is not provided, bAge and DNAmFitAge will be calculated using PC Grimage components}
  \item{UserRef}{User provided methylation reference data will be used for some predictors (see details), must include variables cg and meth_mean}
  \item{ForceUserRef}{If TRUE, UserRef will be forced to use in normalization and imputation for all estimates}
 }
 \details{
-        The original publications (see references) provided reference methylation mean values for most methylation predictors, and thus these values were used directly for normalization and imputations. For the following predictors without reference value in their original publications:
-        PEDBE,EpiToc,EpiToc2,Zhang10CpG,Horvath2,MiAge,DNAmTL,PEDBE,GACPC,GARPC,GARRPC,Bohlin and Knight, we used Sister Study data (~5000 samples) to derive a set of reference methylatin values. If UserRef was provided, it will be used to replace the Sister Study reference values for these predictors. If set ForceUserRef=TRUE, UserRef will be
+        The original publications (see references) provided reference methylation
+       	mean values for most methylation predictors, and thus these values were
+       	used directly for normalization and imputations. For the following 
+	predictors without reference value in their original publications:
+        PEDBE,EpiToc,EpiToc2,Zhang10CpG,Horvath2,MiAge,DNAmTL,PEDBE,GACPC,
+	GARPC,GARRPC,Bohlin and Knight, we used Sister Study data
+       	(~5000 samples) to derive a set of reference methylatin values.
+       	If UserRef was provided, it will be used to replace the Sister
+       	Study reference values for these predictors. If set
+       	ForceUserRef=TRUE, UserRef will be
         used for all predictors in normalization and CpG imputation.
 }
 \value{
