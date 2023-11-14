@@ -41,7 +41,8 @@ readidat <- function(path = NULL,manifestfile=NULL,recursive = TRUE, verbose = F
     names(R.files) <- basename(basenames)
 
     G.Quants <- lapply(G.files, function(xx) {
-        Quants <- readIDAT(xx)[["Quants"]]
+        tr=try(Quants <- readIDAT(xx)[["Quants"]])
+	if(class(tr)[1] == "try-error"){stop(paste0("ERROR: file reading error, check or exclude/remove file: ",xx))}
         if (verbose) message("[readidat] Loaded ", basename(xx), ", ",nrow(Quants)," probes")
         Quants[,c("Mean","NBeads")]
     })
@@ -101,7 +102,8 @@ readidat <- function(path = NULL,manifestfile=NULL,recursive = TRUE, verbose = F
     rm(G.Quants)
     
     R.Quants <- lapply(R.files, function(xx) {
-        Quants <- readIDAT(xx)[["Quants"]]
+        tr=try(Quants <- readIDAT(xx)[["Quants"]])
+	if(class(tr)[1] == "try-error"){stop(paste0("ERROR: file reading error, check or exclude/remove file: ",xx))}
         if (verbose) message("[readidat] Loaded ", basename(xx), ", ",nrow(Quants)," probes")
         Quants[,c("Mean")]
     })
