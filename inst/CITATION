@@ -106,7 +106,22 @@ c(bibentry(bibentry(bibtype = "Article",
            journal = "Bioinformatics",
            year = "2020",
            pubmed = "32805005",
-           header = "DMR analysis")
+           header = "DMR analysis"),
+
+  bibentry(bibtype = "Article",
+           key = "methscore",
+           author = c(
+           person("Zongli", "Xu"),
+           person("Liang", "Niu"),
+           person("Jacob,K.", "Kresovich"),
+           person("Jack,A.", "Taylor")
+                ),
+           title = "Methscore: a comprehensive R function for DNA methylation-based health predictors",
+           journal = "Bioinformatics",
+           year = "2024",
+           pubmed = "38702768",
+           header = "methscore")
+
 
 )
 
