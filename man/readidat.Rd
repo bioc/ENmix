@@ -42,17 +42,10 @@ system("wget https://support.illumina.com/content/dam/illumina-support/documents
 system("unzip infinium-mouse-methylation-manifest-file-csv.zip")
 mf="infinium-mouse-methylation-manifest-file.csv"
 
-
 #for MethylationEPIC v2.0
-system("wget https://support.illumina.com/content/dam/illumina-support/documents/
-       downloads/productfiles/methylationepic/
-       InfiniumMethylationEPICv2.0ProductFiles\(ZIPFormat).zip") 
-system("unzip InfiniumMethylationEPICv2.0ProductFiles\(ZIPFormat\).zip")
-mf="EPIC-8v2-0_A1.csv" 
-#or A2 depends on the types of array used in experiments.
-mf="EPIC-8v2-0_A2.csv"
-manifest=readmanifest(mf)
-
+#download InfiniumMethylationEPICv2.0ProductFiles 
+#mf= path to file "EPIC-8v2-0_A1.csv" or file "EPIC-8v2-0_A2.csv"
+#manifest=readmanifest(mf)
 
 #for MethylationEPIC v1.0 B5
 system("wget https://webdata.illumina.com/downloads/productfiles/
