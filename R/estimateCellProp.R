@@ -40,21 +40,24 @@ if(refdata=="FlowSorted.Blood.450k"){
  flag=refdata$CellType %in% c("WBC")
  refdata=refdata[,!flag]
 }else if(refdata=="FlowSorted.Blood.EPIC"){
+  newdir <- tools::R_user_dir("ExperimentHub", which="cache")
+  if (!dir.exists(newdir)) {
+      dir.create(newdir, recursive = TRUE)
+  }
   library(refdata, character.only = TRUE)
-#  library(ExperimentHub)
-  hub <- ExperimentHub()
-  query(hub, "FlowSorted.Blood.EPIC")
-  FlowSorted.Blood.EPIC <- hub[["EH1136"]]
+  FlowSorted.Blood.EPIC <- libraryDataGet(refdata)
   refdata=get(refdata)
   refdata=preprocessRaw(refdata)
   flag=refdata$CellType %in% c("MIX")
   refdata=refdata[,!flag]
 #need to check
 }else if(refdata=="FlowSorted.CordBloodCombined.450k"){
+  newdir <- tools::R_user_dir("ExperimentHub", which="cache")
+  if (!dir.exists(newdir)) {
+      dir.create(newdir, recursive = TRUE)
+  }
   library(refdata, character.only = TRUE)
-  hub <- ExperimentHub()
-  query(hub, "FlowSorted.CordBloodCombined.450k")
-  FlowSorted.CordBloodCombined.450k <- hub[["EH2256"]]
+  FlowSorted.CordBloodCombined.450k <- libraryDataGet(refdata)
   refdata=get(refdata)
   refdata=preprocessRaw(refdata)
 #table(refdata$CellType)
