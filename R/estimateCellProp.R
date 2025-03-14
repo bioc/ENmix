@@ -17,7 +17,7 @@ if(refdata=="FlowSorted.Blood.450k"){
   refdata=preprocessRaw(refdata)
 #CellType: Bcell  CD4T  CD8T   Eos  Gran  Mono   Neu    NK  PBMC   WBC, 6 each
 # flag=refdata$CellType %in% c("PBMC","WBC","Eos","Neu")
-  flag=refdata$CellType %in% c("PBMC","WBC","Gran")
+  flag=refdata$CellType %in% c("PBMC","WBC")
   refdata=refdata[,!flag]
 }else if(refdata=="FlowSorted.DLPFC.450k"){
   library(refdata, character.only = TRUE)
@@ -45,7 +45,10 @@ if(refdata=="FlowSorted.Blood.450k"){
       dir.create(newdir, recursive = TRUE)
   }
   library(refdata, character.only = TRUE)
-  FlowSorted.Blood.EPIC <- libraryDataGet(refdata)
+  FlowSorted.Blood.EPIC<-libraryDataGet(refdata)
+#  hub <- ExperimentHub()
+#  query(hub, refdata)
+#  FlowSorted.Blood.EPIC <- hub[["EH1136"]]
   refdata=get(refdata)
   refdata=preprocessRaw(refdata)
   flag=refdata$CellType %in% c("MIX")
@@ -58,6 +61,9 @@ if(refdata=="FlowSorted.Blood.450k"){
   }
   library(refdata, character.only = TRUE)
   FlowSorted.CordBloodCombined.450k <- libraryDataGet(refdata)
+#  hub <- ExperimentHub()
+#  query(hub, refdata)
+#  FlowSorted.CordBloodCombined.450k <- hub[["EH2256"]]
   refdata=get(refdata)
   refdata=preprocessRaw(refdata)
 #table(refdata$CellType)
