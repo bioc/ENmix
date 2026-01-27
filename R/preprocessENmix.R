@@ -180,7 +180,7 @@ preprocessENmix  <- function(rgSet, bgParaEst="oob", dyeCorr="RELIC",
     exQCcpg=TRUE, exSample=NULL, exCpG=NULL, nCores=2)
 {
     if(is(rgSet, "rgDataSet")){
-    if(!is.null(QCinfo)){exSample=unique(c(QCinfo$badsample, exSample))}
+    if(!is.null(QCinfo) & exQCsample){exSample=unique(c(QCinfo$badsample, exSample))}
     exSample=exSample[exSample %in% colnames(rgSet)]
     if(length(exSample)>0){
     rgSet=rgSet[,!(colnames(rgSet) %in% exSample)]
@@ -188,7 +188,7 @@ preprocessENmix  <- function(rgSet, bgParaEst="oob", dyeCorr="RELIC",
     }
     mdat <- getmeth(rgSet)
     }else if(is(rgSet, "RGChannelSet")){
-    if(!is.null(QCinfo)){exSample=unique(c(QCinfo$badsample, exSample))}
+    if(!is.null(QCinfo) & exQCsample){exSample=unique(c(QCinfo$badsample, exSample))}
     exSample=exSample[exSample %in% colnames(rgSet)]
     if(length(exSample)>0){
     rgSet=rgSet[,!(colnames(rgSet) %in% exSample)]
