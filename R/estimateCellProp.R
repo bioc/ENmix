@@ -60,7 +60,7 @@ if(refdata=="FlowSorted.Blood.450k"){
       dir.create(newdir, recursive = TRUE)
   }
   library(refdata, character.only = TRUE)
-  FlowSorted.CordBloodCombined.450k <- libraryDataGet(refdata)
+  FlowSorted.CordBloodCombined.450k <-libraryDataGet(refdata)
 #  hub <- ExperimentHub()
 #  query(hub, refdata)
 #  FlowSorted.CordBloodCombined.450k <- hub[["EH2256"]]
@@ -270,5 +270,9 @@ nSubj = dim(userdata)[2]
   data.frame(Sample_Name=rownames(mixCoef),mixCoef)
 }
 
+libraryDataGet <- function(title) {
+    assign(title,ExperimentHub()[[query(ExperimentHub(),
+                                        title)$ah_id]])
+}
 
 

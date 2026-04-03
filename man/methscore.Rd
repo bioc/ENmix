@@ -8,23 +8,18 @@ To calculate various methylation predictors, including DNA methylation age, plas
 }
 \usage{
 methscore(datMeth,datPheno=NULL,fastImputation=FALSE,normalize=TRUE,
-	  GrimAgeComponent=NULL,UserRef=NULL,ForceUserRef=FALSE)
+	  GrimAgeComponent=3,AgeResid=FALSE)
 }
 \arguments{
   \item{datMeth}{Methylation beta value matrix with CpG names(row names) and sample ids(column names).}
   \item{datPheno}{Phenotype data, must include columns SampleID, Age (year) and Female (0:male,1:female).
        Age and Female information are required to calculate DNAmFitAge and PCClocks}
-  \item{fastImputation}{If "TRUE" mean methylation values will used
+  \item{fastImputation}{Logical. If "TRUE" mean methylation values will used
       for imputation, if "FALSE", KNN nearest neighbor method will be used.}
-  \item{normalize}{TRUE or FALSE, if TRUE, user data will be normalized to a reference data using a modified RCP method}
-  \item{GrimAgeComponent}{A data frame of grimage component from methylation age online calculator 
-	  (https://dnamage.clockfoundation.org/user/login). It must include the following variables,
-	 ("SampleID","DNAmADM", "DNAmB2M", "DNAmCystatinC", 
-	 "DNAmGDF15", "DNAmLeptin", "DNAmPACKYRS", "DNAmPAI1",  
-	 "DNAmTIMP1","DNAmGrimAge"). 
-         If the file is not provided, bAge and DNAmFitAge will be calculated using PC Grimage components}
- \item{UserRef}{User provided methylation reference data will be used for some predictors (see details), must include variables cg and meth_mean}
- \item{ForceUserRef}{If TRUE, UserRef will be forced to use in normalization and imputation for all estimates}
+  \item{normalize}{Logical. If TRUE, user data will be normalized to a reference data using a modified RCP method}
+  \item{GrimAgeComponent}{Which version of GrimAgeComponent will be used to calculate bAge and DNAmFitAge.
+	  1: GrimAgeV1; 2: GrimAgeV2 and 3: PCGrimAge.} 
+  \item{AgeResid}{Logical. If TRUE, age residuals (age acceleration) variables will be calculated.}
 }
 \details{
         The original publications (see references) provided reference methylation
@@ -85,6 +80,12 @@ Youn et al. \emph{The MiAge Calculator: a DNA methylation-based mitotic age calc
 Zhang et al. \emph{Improved precision of epigenetic clock estimates across tissues and its implication for biological ageing}.Genome Med. 2019 Aug 23;11(1):54. doi: 10.1186/s13073-019-0667-1.
 
 Zhang et al. \emph{DNA methylation signatures in peripheral blood strongly predict all-cause mortality}.Nat Commun. 2017 Mar 17;8:14617. doi: 10.1038/ncomms14617.
+
+Lu et al. \emph{DNA methylation GrimAge strongly predicts lifespan and healthspan}. Aging. 2019 Jan 21;11(2):303-327.  doi: 10.18632/aging.101684.
+
+Lu et al. \emph{DNA methylation GrimAge version 2}. Aging (Albany NY). 2022 Dec 14;14(23):9484-9549. doi: 10.18632/aging.204434. Epub 2022 Dec 14.
+
+Ying et al. \emph{Causality-enriched epigenetic age uncouples damage and adaptation}. Nat Aging. 2024 Feb;4(2):231-246. doi: 10.1038/s43587-023-00557-0. Epub 2024 Jan 19.
 }
 
 \author{

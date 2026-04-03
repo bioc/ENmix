@@ -1,59 +1,44 @@
 
-methscore<-function(datMeth,datPheno=NULL,fastImputation=FALSE,normalize=TRUE,GrimAgeComponent=NULL,UserRef=NULL,ForceUserRef=FALSE)
+methscore<-function(datMeth,datPheno=NULL,fastImputation=FALSE,normalize=TRUE,
+		    GrimAgeComponent=3,AgeResid=FALSE)
 {
 #input datMeth value matrix must be in between 0 to 1, percentage of cg methylated
+datMeth<-as.matrix(datMeth)
 if(min(datMeth,na.rm=TRUE)<0 | max(datMeth,na.rm=TRUE)>1){
     stop("Warning: Methylation datMeth value should be within [0,1]")}
 
-if(ForceUserRef & is.null(UserRef)){ForceUserRef=FALSE; message("Warning: UserRef is not provided, set ForceUserRef=FALSE")}
-if(!is.null(UserRef)){if(!all(c("cg","meth_mean") %in% colnames(UserRef)))stop("UserRef must include variables cg and meth_mean")}
-
-#if GrimAge Components were provided
-if(!is.null(GrimAgeComponent)){
-	component= c("DNAmADM", "DNAmB2M", "DNAmCystatinC", "DNAmGDF15", "DNAmLeptin", "DNAmPACKYRS", "DNAmPAI1", "DNAmTIMP1","DNAmGrimAge")
-	component=component[!component %in% colnames(GrimAgeComponent)]
-	if(length(component)>0){
-		stop(paste0("Variables ",component," were not found in GrimAgeComponent"))
-	}
-
-	if(sum(colnames(datMeth) %in% as.vector(GrimAgeComponent$SampleID))<ncol(datMeth)){
-		stop("Some samples in datMeth do not have data in GrimAgeComponent")
-	}else{rownames(GrimAgeComponent)=as.vector(GrimAgeComponent$SampleID)}
+#if GrimAge Components flag
+if (!GrimAgeComponent %in% c(1, 2, 3)) {
+  stop("Error: GrimAgeComponent must be 1, 2, or 3")
 }
 
 #remove CpGs with missing values for all samples
-datMeth=datMeth[!rowSums(is.na(datMeth))==ncol(datMeth),]
+datMeth=datMeth[rowSums(is.na(datMeth)) != ncol(datMeth),]
 
-#if datMeth is a vector, convert it to a matrix
-if(is.vector(datMeth)){datMeth=as.matrix(datMeth)}
-
-if(is.null(datPheno)){ stop("Error: datPheno is missing.")} else {
-  datPheno=as.data.frame(datPheno)
-  if(!("Age" %in% colnames(datPheno))){
-    stop("Error: datPheno must have a column named Age")
-  }
-  if(!("Female" %in% colnames(datPheno))){
-    stop("Error: datPheno must have a column named Female")
-  }
-  if(!("SampleID" %in% colnames(datPheno))){
-    stop("Error: datPheno must have a column named SampleID")
-  }else if(sum(colnames(datMeth) %in% datPheno$SampleID)<ncol(datMeth)){
-     stop("Error: some samples in datMeth do not have phenotype in datPheno")
-  }else{
-     rownames(datPheno)=datPheno$SampleID
-     datPheno=datPheno[colnames(datMeth),]
-  }
-  if(sum(is.na(datPheno))>0){stop("Error: missing value in phenotype data is not allowed")}
+#check pheno 
+if (is.null(datPheno)) {stop("Error: datPheno is missing.")}
+datPheno <- as.data.frame(datPheno)
+required_cols <- c("Age", "Female", "SampleID")
+missing_cols <- setdiff(required_cols, colnames(datPheno))
+if (length(missing_cols) > 0) {
+  stop(paste0("Error: datPheno must have the following columns: ",
+    paste(missing_cols, collapse = ", ")))
+}
+if (!all(colnames(datMeth) %in% datPheno$SampleID)) {
+  stop("Error: some samples in datMeth do not have phenotype in datPheno")
+}
+rownames(datPheno) <- datPheno$SampleID
+datPheno <- datPheno[colnames(datMeth), , drop = FALSE]
+if (any(is.na(datPheno))) {
+  stop("Error: missing value in phenotype data is not allowed")
 }
 
-#define a few global variables
-refmeth=mPOA_Models=episcore_model=pcc=refmeth2=DNAmFitnessModels=NULL
-cAge_CpG=bAge_CpG=EpiToc_CpGs=MiAgedat=methscore_dict=NULL
 #load in all model and reference data
 load(system.file("mage_ref.RData",package="ENmix"))
 load(system.file("mPOA_Models.RData",package="ENmix"))
 #load(system.file("pcclock_model.RData",package="ENmix"))
-pcc1=pcc2=pcc3=pcc4=NULL
+#pcc1=pcc2=pcc3=pcc4=NULL
+#load in PC related clocks
 load(system.file("pcclock_model1.RData",package="ENmix"))
 load(system.file("pcclock_model2.RData",package="ENmix"))
 load(system.file("pcclock_model3.RData",package="ENmix"))
@@ -61,275 +46,304 @@ load(system.file("pcclock_model4.RData",package="ENmix"))
 pcc=c(pcc1,pcc2,pcc3,pcc4)
 
 #check whether datMeth probe names include suffix, such as in EPICv2 array
-if(sum(as.vector(refmeth$cg) %in% rownames(datMeth))<50){datMeth=rm.cgsuffix(datMeth)}
+if(sum(as.character(refmeth$cg) %in% rownames(datMeth))<50){datMeth=rm.cgsuffix(datMeth)}
 
 #combine reference CpG
 #normalize to Horvath refmeth before combine
-refcg=as.vector(refmeth$cg)
-refcg=unique(c(refcg,as.vector(mPOA_Models$gold_standard_probes)))
-refcg=unique(c(refcg,as.vector(episcore_model$CpG_Site)))
-refcg=unique(c(refcg,as.vector(frailty_model$cg[-1])))
-refcg=unique(c(refcg,names(pcc$pcCpGs)))
-refcg=unique(c(refcg,as.vector(refmeth2$cg)))
-refcg=unique(c(refcg,as.vector(cAge_CpG$means$cpg)))
-refcg=unique(c(refcg,as.vector(bAge_CpG$cpgs$CpG_Site)))
-refcg=unique(c(refcg,as.vector(DNAmFitnessModels$AllCpGs)))
+refcg <- unique(c(
+  as.character(refmeth$cg),
+  as.character(mPOA_Models$gold_standard_probes),
+  as.character(episcore_model$CpG_Site),
+  as.character(frailty_model$cg[-1]),
+  names(pcc$pcCpGs),
+  as.character(refmeth2$cg),
+  as.character(cAge_CpG$means$cpg),
+  as.character(bAge_CpG$cpgs$CpG_Site),
+  as.character(DNAmFitnessModels$AllCpGs)
+))
 
 #remove unnecessary probes for estimation
-datMeth=datMeth[rownames(datMeth) %in% refcg,]
+datMeth=datMeth[rownames(datMeth) %in% refcg,,drop=FALSE]
 
 #imputation to fill missing values
-noMissingPerCpG=apply(is.na(datMeth),1,sum)
+noMissingPerCpG <- rowSums(is.na(datMeth))
 if(max(noMissingPerCpG)>0 & ncol(as.matrix(datMeth))>1){
 message("Imputation to fill missing values...")
 if(!fastImputation){
     set.seed(1)
-    datMeth=t(impute::impute.knn(t(datMeth))$data)
+    datMeth <- t(impute::impute.knn(t(datMeth))$data)
 }else{
     for (i in which(noMissingPerCpG>0)){
-        idx=is.na(datMeth[i,])
-        datMeth[i,][is.na(datMeth[i,])] = mean(as.numeric(datMeth[i,]),na.rm=T)
+        idx <- is.na(datMeth[i,])
+        datMeth[i,idx] <- mean(datMeth[i,],na.rm=TRUE)
 }}}
 
-
 #Count of model required CpGs that are missing in user provided data
-missedcg=NULL
-cgcheck=data.frame(predictor=NA,nCpG_required=NA,nCpG_present=NA,nCpG_missing=NA)
-np=1
-cgcheck[np,1]="HorvathAge";cgcheck[np,2]=nrow(horvath)-1;cgcheck[np,3]=sum(as.vector(horvath$cg) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="PhenoAge";cgcheck[np,2]=nrow(phenoage)-1;cgcheck[np,3]=sum(as.vector(phenoage$cg) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="HannumAge";cgcheck[np,2]=nrow(hannum);cgcheck[np,3]=sum(as.vector(hannum$cg) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="PACE";cgcheck[np,2]=length(mPOA_Models$model_probes);cgcheck[np,3]=sum(as.vector(mPOA_Models$model_probes) %in% rownames(datMeth))
-#frailty
-np=np+1
-cgcheck[np,1]="Frailty";cgcheck[np,2]=nrow(frailty_model)-1;cgcheck[np,3]=sum(as.vector(frailty_model$cg[-1]) %in% rownames(datMeth))
-#other,PEDBE,EpiToc,EpiToc2,Zhang10CpG,Horvath2,MiAge,DNAmTL,PEDBE,GACPC,GARPC,GARRPC,Bohlin,Knight
-np=np+1
-cgcheck[np,1]="DNAmTL";cgcheck[np,2]=nrow(DNAmTL_CpGs);cgcheck[np,3]=sum(as.vector(DNAmTL_CpGs$ID) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="pcgtAge";cgcheck[np,2]=length(EpiToc_CpGs);cgcheck[np,3]=sum(EpiToc_CpGs %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="TNSC";cgcheck[np,2]=nrow(EpiToc2_CpGs);cgcheck[np,3]=sum(rownames(EpiToc2_CpGs) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="TNSC2";cgcheck[np,2]=nrow(EpiToc2_CpGs);cgcheck[np,3]=sum(rownames(EpiToc2_CpGs) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="Zhang10CpG";cgcheck[np,2]=nrow(Zhang_10_CpG);cgcheck[np,3]=sum(as.vector(Zhang_10_CpG$Marker) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="Horvath2";cgcheck[np,2]=nrow(Horvath2_CpGs);cgcheck[np,3]=sum(as.vector(Horvath2_CpGs$ID) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="MiAge";cgcheck[np,2]=nrow(MiAgedat$MiAge_CpGs);cgcheck[np,3]=sum(as.vector(MiAgedat$MiAge_CpGs$CpGs) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="PedBE";cgcheck[np,2]=nrow(PEDBE_CpGs);cgcheck[np,3]=sum(as.vector(PEDBE_CpGs$ID) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="GACPC";cgcheck[np,2]=nrow(GACPC_CpGs);cgcheck[np,3]=sum(as.vector(GACPC_CpGs$CpG) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="GARPC";cgcheck[np,2]=nrow(GARPC_CpGs);cgcheck[np,3]=sum(as.vector(GARPC_CpGs$CpG) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="GARRPC";cgcheck[np,2]=nrow(GARRPC_CpGs);cgcheck[np,3]=sum(as.vector(GARRPC_CpGs$CpG) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="BohlinGAge";cgcheck[np,2]=nrow(Bohlin_CpGs);cgcheck[np,3]=sum(as.vector(Bohlin_CpGs$CpG) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="KnightGAge";cgcheck[np,2]=nrow(Knight_CpGs);cgcheck[np,3]=sum(as.vector(Knight_CpGs$CpG) %in% rownames(datMeth))
+## Count of model-required CpGs that are missing in user-provided data
+cgcheck <- data.frame(
+  predictor = character(),
+  nCpG_required = integer(),
+  nCpG_present = integer(),
+  nCpG_missing = integer(),
+  stringsAsFactors = FALSE
+)
+add_check <- function(name, required, present) {
+  cgcheck <<- rbind(
+    cgcheck,
+    data.frame(
+      predictor = name,
+      nCpG_required = required,
+      nCpG_present = present,
+      stringsAsFactors = FALSE
+    )
+  )
+}
+rownames_meth <- rownames(datMeth)
+add_check("HorvathAge", nrow(horvath) - 1,
+          sum(as.character(horvath$cg) %in% rownames_meth))
+add_check("PhenoAge", nrow(phenoage) - 1,
+          sum(as.character(phenoage$cg) %in% rownames_meth))
+add_check("HannumAge",
+          nrow(hannum),
+          sum(as.character(hannum$cg) %in% rownames_meth))
+add_check("PACE",length(mPOA_Models$model_probes),
+          sum(as.character(mPOA_Models$model_probes) %in% rownames_meth))
+add_check("Frailty",nrow(frailty_model) - 1,
+          sum(as.character(frailty_model$cg[-1]) %in% rownames_meth))
+add_check("DNAmTL",nrow(DNAmTL_CpGs),
+          sum(as.character(DNAmTL_CpGs$ID) %in% rownames_meth))
+add_check("pcgtAge",length(EpiToc_CpGs),
+          sum(EpiToc_CpGs %in% rownames_meth))
+add_check("TNSC",nrow(EpiToc2_CpGs),
+          sum(rownames(EpiToc2_CpGs) %in% rownames_meth))
+add_check("TNSC2",nrow(EpiToc2_CpGs),
+          sum(rownames(EpiToc2_CpGs) %in% rownames_meth))
+add_check("Zhang10CpG",nrow(Zhang_10_CpG),
+          sum(as.character(Zhang_10_CpG$Marker) %in% rownames_meth))
+add_check("Horvath2",nrow(Horvath2_CpGs),
+          sum(as.character(Horvath2_CpGs$ID) %in% rownames_meth))
+add_check("MiAge", nrow(MiAgedat$MiAge_CpGs),
+          sum(as.character(MiAgedat$MiAge_CpGs$CpGs) %in% rownames_meth))
+add_check("PedBE",nrow(PEDBE_CpGs), 
+	  sum(as.character(PEDBE_CpGs$ID) %in% rownames_meth))
+add_check("GACPC",nrow(GACPC_CpGs),
+          sum(as.character(GACPC_CpGs$CpG) %in% rownames_meth))
+add_check("GARPC",nrow(GARPC_CpGs),
+          sum(as.character(GARPC_CpGs$CpG) %in% rownames_meth))
+add_check("GARRPC",nrow(GARRPC_CpGs),
+          sum(as.character(GARRPC_CpGs$CpG) %in% rownames_meth))
+add_check("BohlinGAge", nrow(Bohlin_CpGs),
+          sum(as.character(Bohlin_CpGs$CpG) %in% rownames_meth))
+add_check("KnightGAge", nrow(Knight_CpGs),
+          sum(as.character(Knight_CpGs$CpG) %in% rownames_meth))
 #pcclock
-pcvar1 = c("PCHorvath1", "PCHorvath2", "PCHannum", "PCPhenoAge", 
-                     "PCDNAmTL", "PCPACKYRS", "PCADM", "PCB2M", "PCCystatinC",
-                     "PCGDF15", "PCLeptin", "PCPAI1", "PCTIMP1", "PCGrimAge")
-pcvar=c(pcvar1)
-for(vv in pcvar){
-np=np+1
-cgcheck[np,1]=vv;cgcheck[np,2]=length(pcc$pcCpGs);cgcheck[np,3]=sum(names(pcc$pcCpGs) %in% rownames(datMeth))
+pcvar <- c(
+  "PCHorvath1", "PCHorvath2", "PCHannum", "PCPhenoAge",
+  "PCDNAmTL", "PCPACKYRS", "PCADM", "PCB2M", "PCCystatinC",
+  "PCGDF15", "PCLeptin", "PCPAI1", "PCTIMP1", "PCGrimAge"
+)
+pc_cpgs <- names(pcc$pcCpGs)
+for (vv in pcvar) {
+  add_check(vv,length(pc_cpgs), sum(pc_cpgs %in% rownames_meth))
 }
-#cAge
-np=np+1
-cgcheck[np,1]="cAge";cgcheck[np,2]=nrow(cAge_CpG$means);cgcheck[np,3]=sum(as.vector(cAge_CpG$means$cpg) %in% rownames(datMeth))
-#bAge
-np=np+1
-cgcheck[np,1]="bAge";cgcheck[np,2]=nrow(bAge_CpG$cpgs);cgcheck[np,3]=sum(as.vector(bAge_CpG$cpgs$CpG_Site) %in% rownames(datMeth))
-np=np+1
-cgcheck[np,1]="bAge_Years";cgcheck[np,2]=nrow(bAge_CpG$cpgs);cgcheck[np,3]=sum(as.vector(bAge_CpG$cpgs$CpG_Site) %in% rownames(datMeth))
-#episcore
-for(ms in unique(episcore_model$Predictor)){
-    np=np+1
-    tmp=episcore_model[episcore_model$Predictor == ms,]
-    cgcheck[np,1]=ms
-    cgcheck[np,2]=nrow(tmp)
-    cgcheck[np,3]=sum(as.vector(tmp$CpG_Site) %in% rownames(datMeth))
+
+## cAge
+add_check("cAge",nrow(cAge_CpG$means),
+  sum(as.character(cAge_CpG$means$cpg) %in% rownames_meth))
+## bAge
+add_check("bAge",nrow(bAge_CpG$cpgs),
+  sum(as.character(bAge_CpG$cpgs$CpG_Site) %in% rownames_meth))
+add_check("bAge_Years", nrow(bAge_CpG$cpgs),
+  sum(as.character(bAge_CpG$cpgs$CpG_Site) %in% rownames_meth))
+## episcore
+for (ms in unique(episcore_model$Predictor)) {
+  tmp <- episcore_model[episcore_model$Predictor == ms, , drop = FALSE]
+  add_check(ms, nrow(tmp), sum(as.character(tmp$CpG_Site) %in% rownames_meth))
 }
-#DNAm Fit Age
-fa=c("DNAmGait_noAge","DNAmGrip_noAge","DNAmVO2max","DNAmGait_wAge","DNAmGrip_wAge","DNAmFEV1_wAge","DNAmFitAge")
-for(i in 1:length(fa)){
-  np=np+1
-  cgcheck[np,1]=fa[i];cgcheck[np,2]=length(DNAmFitnessModels$AllCpGs);cgcheck[np,3]=sum(as.vector(DNAmFitnessModels$AllCpGs) %in% rownames(datMeth))
+## DNAm Fit Age
+fa <- c(
+  "DNAmGait_noAge", "DNAmGrip_noAge", "DNAmVO2max",
+  "DNAmGait_wAge", "DNAmGrip_wAge", "DNAmFEV1_wAge",
+  "DNAmFitAge"
+)
+for (i in seq_along(fa)) {
+  add_check(fa[i], length(DNAmFitnessModels$AllCpGs),
+    sum(as.character(DNAmFitnessModels$AllCpGs) %in% rownames_meth)
+  )
 }
+
+#GrimAge
+add_check("DNAmPACKYRS", length(GrimAgeV1_model$PACKYRS.model[-1]),
+          sum(names(GrimAgeV1_model$PACKYRS.model) %in% rownames_meth))
+add_check("DNAmADM", length(GrimAgeV1_model$ADM.model[-1]),
+          sum(names(GrimAgeV1_model$ADM.model) %in% rownames_meth))
+add_check("DNAmB2M", length(GrimAgeV1_model$B2M.model[-1]),
+          sum(names(GrimAgeV1_model$B2M.model) %in% rownames_meth))
+add_check("DNAmCystatinC", length(GrimAgeV1_model$CystatinC.model[-1]),
+          sum(names(GrimAgeV1_model$CystatinC.model) %in% rownames_meth))
+add_check("DNAmGDF15", length(GrimAgeV1_model$GDF15.model[-1]),
+          sum(names(GrimAgeV1_model$GDF15.model) %in% rownames_meth))
+add_check("DNAmLeptin", length(GrimAgeV1_model$Leptin.model),
+          sum(names(GrimAgeV1_model$Leptin.model) %in% rownames_meth))
+add_check("DNAmPAI1", length(GrimAgeV1_model$PAI1.model),
+          sum(names(GrimAgeV1_model$PAI1.model) %in% rownames_meth))
+add_check("DNAmTIMP1", length(GrimAgeV1_model$TIMP1.model[-1]),
+          sum(names(GrimAgeV1_model$TIMP1.model) %in% rownames_meth))
+add_check("DNAmlogCRP", length(GrimAgeV2_model$logCRP.model),
+          sum(names(GrimAgeV2_model$logCRP.model) %in% rownames_meth))
+add_check("DNAmlogA1C", length(GrimAgeV2_model$logA1C.model[-1]),
+          sum(names(GrimAgeV2_model$logA1C.model) %in% rownames_meth))
+add_check("GrimAgeV1", length(GrimAge_CpG),
+	  sum(GrimAge_CpG %in% rownames_meth))
+add_check("GrimAgeV2", length(GrimAge_CpG),
+          sum(GrimAge_CpG %in% rownames_meth))
+
+#AdaptAge_CpGs
+add_check("AdaptAge", length(AdaptAge_model$CpG),
+          sum(AdaptAge_model$CpG %in% rownames_meth))
+
+#AdaptAge_CpGs
+add_check("CausAge", length(CausAge_model$CpG),
+          sum(CausAge_model$CpG %in% rownames_meth))
+
+#DamAge_CpGs
+add_check("DamAge", length(DamAge_model$CpG),
+          sum(DamAge_model$CpG %in% rownames_meth))
+
 
 message("Number of CpGs missing for estimates\n")
 cgcheck$nCpG_missing=cgcheck$nCpG_required-cgcheck$nCpG_present
 print(cgcheck)
-if(max(cgcheck$nCpG_missing)>0){message("Missing probes will be imputed with reference values\n")}
-message("See file summary_methscore_CpG.csv for the CpG count summary and citation for each predictor")
+if(max(cgcheck$nCpG_missing)>0){
+	message("Missing probes will be imputed with reference values\n")}
+message("See file summary_methscore_CpG.csv for the CpG count summary 
+	and citation for each predictor")
 cgcheck=merge(methscore_dict,cgcheck,by="predictor")
 rownames(cgcheck)=cgcheck$predictor
-cgcheck=cgcheck[as.vector(methscore_dict$predictor),]
+cgcheck=cgcheck[as.character(methscore_dict$predictor),]
 write.csv(cgcheck,file="summary_methscore_CpG.csv",row.names=FALSE)
 
 #function for normalization using a modified RCP method, and imputing missing CpGs
-norm_imputing <-function(dat,refdat,normalize,missedcg){
+norm_impute <-function(dat,refdat,normalize = TRUE, missedcg = character(0)){
    if(normalize){dat=rcp2(dat,refdat)}
     #replace missing probes with reference values
+    missedcg <- missedcg[!(missedcg %in% rownames(dat))]
     if(length(missedcg)>0){
-        refdat=refdat[as.vector(refdat$cg) %in% missedcg,]
-        missedcg.dat=matrix(rep(refdat$meth_mean,ncol(datMeth)),nrow=length(missedcg))
-        rownames(missedcg.dat)=as.vector(refdat$cg)
+        refsub=refdat[as.character(refdat$cg) %in% missedcg, , drop = FALSE]
+        missedcg.dat=matrix(rep(refsub$meth_mean,ncol(dat)),
+			    nrow=length(missedcg),ncol = ncol(dat))
+        rownames(missedcg.dat)=as.character(refsub$cg)
         colnames(missedcg.dat)=colnames(dat)
         dat=rbind(dat,missedcg.dat)
      }
      return(dat)    
 }
 
-#Age transformation and probe annotation functions
-trafo= function(x,adult.age=20) { x=(x+1)/(1+adult.age); y=ifelse(x<=1, log( x),x-1);y }
-anti.trafo= function(x,adult.age=20) { ifelse(x<0, (1+adult.age)*exp(x)-1, (1+adult.age)*x+adult.age) }
+#Age transformation and probe annotation functions for Hovath age
+trafo= function(x,adult.age=20) { x=(x+1)/(1+adult.age); 
+    y=ifelse(x<=1, log( x),x-1);y }
+anti.trafo= function(x,adult.age=20) {
+       	ifelse(x<0, (1+adult.age)*exp(x)-1, (1+adult.age)*x+adult.age) }
 
 
 ###Methylation predictors
-#########################################
 #methylation ages
 message("Calculating methylation scores ...")
 mScore=data.frame(SampleID=colnames(datMeth))
 
-modelcg=unique(c(as.vector(horvath$cg[-1]),as.vector(phenoage$cg[-1]),as.vector(hannum$cg)))
+modelcg=unique(c(as.character(horvath$cg[-1]),as.character(phenoage$cg[-1]),
+		 as.character(hannum$cg)))
 missedcg=modelcg[!(modelcg %in% rownames(datMeth))]
-refdat=refmeth;names(refdat)=c("cg","meth_mean")
-#If user provied reference data include all modelcg, then use UserRef
-if(!is.null(UserRef) & ForceUserRef){
-    tmp=modelcg[!modelcg %in% as.vector(UserRef$cg)]
-    if(length(tmp)==0){refdat=UserRef}else{
-            message(paste0("The following model required CpGs are missing in UserRef:"))
-            message(paste0(tmp,collaps=" "))
-            message("System reference were used for HorvathAge,mAge_Hannum,PhenoAge")
-    }
-}
-datMeth2=norm_imputing(datMeth,refdat=refdat,normalize,missedcg)
+refdat=refmeth
+datMeth2=norm_impute(datMeth,refdat=refdat,normalize,missedcg)
 
 #HorvathAge
 intercept=horvath$coef[horvath$cg=="(Intercept)"]
-horvath=horvath[as.vector(horvath$cg) %in% rownames(datMeth2),]
-mAge=anti.trafo(colSums(as.numeric(horvath$coef) * datMeth2[as.vector(horvath$cg),],na.rm=T)+intercept)
-mScore$HorvathAge=mAge[as.vector(mScore$SampleID)]
+horvath=horvath[as.character(horvath$cg) %in% rownames(datMeth2), , drop = FALSE]
+mAge=anti.trafo(
+    colSums(as.numeric(horvath$coef) * datMeth2[as.character(horvath$cg), , drop = FALSE],
+		na.rm=T)+intercept)
+mScore$HorvathAge=mAge[as.character(mScore$SampleID)]
 #Hannum Age
-hannum=hannum[hannum$cg %in% rownames(datMeth2),]
-mAge=colSums(hannum$coef * datMeth2[as.vector(hannum$cg),],na.rm=T)
-mScore$HannumAge=mAge[as.vector(mScore$SampleID)]
+hannum=hannum[hannum$cg %in% rownames(datMeth2), , drop = FALSE]
+mAge=colSums(hannum$coef * datMeth2[as.character(hannum$cg), , drop = FALSE],na.rm=TRUE)
+mScore$HannumAge=mAge[as.character(mScore$SampleID)]
 #PhenoAge
 intercept=phenoage$coef[phenoage$cg=="intercept"]
-phenoage=phenoage[phenoage$cg %in% rownames(datMeth2),]
-mAge=colSums(phenoage$coef * datMeth2[as.vector(phenoage$cg),],na.rm=T)+intercept
-mScore$PhenoAge=mAge[as.vector(mScore$SampleID)]
+phenoage=phenoage[phenoage$cg %in% rownames(datMeth2), , drop = FALSE]
+mAge=colSums(phenoage$coef * datMeth2[as.character(phenoage$cg), , drop = FALSE],na.rm=T)+intercept
+mScore$PhenoAge=mAge[as.character(mScore$SampleID)]
 
-#########################################
 #PACE estimation
-modelcg=unique(as.vector(mPOA_Models$model_probes))
+modelcg=unique(as.character(mPOA_Models$model_probes))
 missedcg=modelcg[!(modelcg %in% rownames(datMeth))]
 refdat=data.frame(cg=mPOA_Models$gold_standard_probes,meth_mean=mPOA_Models$gold_standard_means)
-#If user provied reference data include all modelcg, then use UserRef
-if(!is.null(UserRef) & ForceUserRef){
-    tmp=modelcg[!modelcg %in% as.vector(UserRef$cg)]
-    if(length(tmp)==0){refdat=UserRef}else{
-            message(paste0("The following model required CpGs are missing in UserRef:"))
-            message(paste0(tmp,collaps=" "))
-            message("System reference were used for PACE")
-    }
-}
-datMeth2=norm_imputing(datMeth,refdat=refdat,normalize,missedcg)
+datMeth2=norm_impute(datMeth,refdat=refdat,normalize,missedcg)
 
 PACE=DunedinPACE(betas=datMeth2, proportionOfProbesRequired = 0.8)
-mScore$PACE=PACE[as.vector(mScore$SampleID)]
+mScore$PACE=PACE[as.character(mScore$SampleID)]
 
-#########################################
 #Frailty
-modelcg=unique(as.vector(frailty_model$cg[-1]))
+modelcg=unique(as.character(frailty_model$cg[-1]))
 missedcg=modelcg[!(modelcg %in% rownames(datMeth))]
 refdat=frailty_model[-1,c("cg","meth_mean")]
-#If user provied reference data include all modelcg, then use UserRef
-if(!is.null(UserRef) & ForceUserRef){
-    tmp=modelcg[!modelcg %in% as.vector(UserRef$cg)]
-    if(length(tmp)==0){refdat=UserRef}else{
-            message(paste0("The following model required CpGs are missing in UserRef:"))
-            message(paste0(tmp,collaps=" "))
-            message("System reference were used for eFRS")
-    }
-}
-datMeth2=norm_imputing(datMeth,refdat=refdat,normalize,missedcg)
+datMeth2=norm_impute(datMeth,refdat=refdat,normalize,missedcg)
 
 intercept=frailty_model$coef[frailty_model$cg=="intercept"]
-frailty_model=frailty_model[frailty_model$cg %in% rownames(datMeth2),]
-eFRS=colSums(frailty_model$coef * datMeth2[as.vector(frailty_model$cg),],na.rm=T)+intercept
-mScore$Frailty=eFRS[as.vector(mScore$SampleID)]
+frailty_model=frailty_model[frailty_model$cg %in% rownames(datMeth2), , drop = FALSE]
+eFRS=colSums(frailty_model$coef * datMeth2[as.character(frailty_model$cg), , drop = FALSE],na.rm=T)+intercept
+mScore$Frailty=eFRS[as.character(mScore$SampleID)]
 
 
-#########################################
-#other,PEDBE,EpiToc,EpiToc2,Zhang10CpG,Horvath2,MiAge,DNAmTL,PEDBE,GACPC,GARPC,GARRPC,Bohlin,Knight
-modelcg=unique(as.vector(PEDBE_CpGs$ID))
-modelcg=unique(c(modelcg,as.vector(EpiToc_CpGs)))
-modelcg=unique(c(modelcg,rownames(EpiToc2_CpGs)))
-modelcg=unique(c(modelcg,as.vector(Zhang_10_CpG$Marker)))
-modelcg=unique(c(modelcg,as.vector(Horvath2_CpGs$ID)))
-modelcg=unique(c(modelcg,as.vector(MiAgedat$MiAge_CpGs$CpGs)))
-modelcg=unique(c(modelcg,as.vector(DNAmTL_CpGs$ID)))
-modelcg=unique(c(modelcg,as.vector(PEDBE_CpGs$ID)))
-modelcg=unique(c(modelcg,as.vector(GACPC_CpGs$CpG)))
-modelcg=unique(c(modelcg,as.vector(GARPC_CpGs$CpG)))
-modelcg=unique(c(modelcg,as.vector(GARRPC_CpGs$CpG)))
-modelcg=unique(c(modelcg,as.vector(Bohlin_CpGs$CpG)))
-modelcg=unique(c(modelcg,as.vector(Knight_CpGs$CpG)))
-missedcg=modelcg[!(modelcg %in% rownames(datMeth))]
-refdat=refmeth2
-#If user provied reference data include all modelcg, then use UserRef
-if(!is.null(UserRef)){
-    tmp=modelcg[!modelcg %in% as.vector(UserRef$cg)]
-    if(length(tmp)==0){refdat=UserRef}else{
-	    message(paste0("The following model required CpGs are missing in UserRef:"))
-            message(paste0(tmp,collaps=" "))
-	    message("System reference were used for PEDBE,EpiToc,EpiToc2,Zhang10CpG,Horvath2,MiAge,DNAmTL,PEDBE,GACPC,GARPC,GARRPC,Bohlin,Knight")
-    }
-}
-
-names(refdat)=c("cg","meth_mean")
-datMeth2=norm_imputing(datMeth,refdat=refdat,normalize,missedcg)
+#PEDBE,EpiToc,EpiToc2,Zhang10CpG,Horvath2,MiAge,DNAmTL,PEDBE,GACPC,GARPC,GARRPC,Bohlin,Knight
+modelcg <- unique(c(
+  as.character(PEDBE_CpGs$ID),
+  as.character(EpiToc_CpGs),
+  rownames(EpiToc2_CpGs),
+  as.character(Zhang_10_CpG$Marker),
+  as.character(Horvath2_CpGs$ID),
+  as.character(MiAgedat$MiAge_CpGs$CpGs),
+  as.character(DNAmTL_CpGs$ID),
+  as.character(GACPC_CpGs$CpG),
+  as.character(GARPC_CpGs$CpG),
+  as.character(GARRPC_CpGs$CpG),
+  as.character(Bohlin_CpGs$CpG),
+  as.character(Knight_CpGs$CpG)
+))
+missedcg <- setdiff(modelcg, rownames(datMeth))
+refdat=refmeth2; names(refdat)=c("cg","meth_mean")
+datMeth2=norm_impute(datMeth,refdat=refdat,normalize,missedcg)
 
 #DNAmTL
-DNAmTL_CpGs=DNAmTL_CpGs[DNAmTL_CpGs$ID %in% rownames(datMeth2),]
-DNAmTL=colSums(DNAmTL_CpGs$Coef * datMeth2[as.vector(DNAmTL_CpGs$ID),],na.rm=T)-7.924780053
-mScore$DNAmTL=DNAmTL[as.vector(mScore$SampleID)]
+DNAmTL_CpGs=DNAmTL_CpGs[DNAmTL_CpGs$ID %in% rownames(datMeth2), , drop = FALSE]
+DNAmTL=colSums(DNAmTL_CpGs$Coef * datMeth2[as.character(DNAmTL_CpGs$ID), , drop = FALSE],na.rm=TRUE)-7.924780053
+mScore$DNAmTL=DNAmTL[as.character(mScore$SampleID)]
 
 #EpiTOC
-pcgtAge <- colMeans(datMeth2[rownames(datMeth2) %in% EpiToc_CpGs,],na.rm=TRUE)
-mScore$pcgtAge=pcgtAge[as.vector(mScore$SampleID)]
+pcgtAge <- colMeans(datMeth2[rownames(datMeth2) %in% EpiToc_CpGs, , drop = FALSE],na.rm=TRUE)
+mScore$pcgtAge=pcgtAge[as.character(mScore$SampleID)]
 
 #EpiTOC2
-EpiToc2_CpGs=EpiToc2_CpGs[rownames(EpiToc2_CpGs) %in% rownames(datMeth2),]
-tmp.m=datMeth2[rownames(EpiToc2_CpGs),]
+EpiToc2_CpGs=EpiToc2_CpGs[rownames(EpiToc2_CpGs) %in% rownames(datMeth2), , drop = FALSE]
+tmp.m=datMeth2[rownames(EpiToc2_CpGs), , drop = FALSE]
 TNSC <- 2*colMeans((1/(EpiToc2_CpGs[,1]*(1-EpiToc2_CpGs[,2]))) * (tmp.m - EpiToc2_CpGs[,2]),na.rm=TRUE)
 #approximated = T
 TNSC2 <- 2*colMeans((1/EpiToc2_CpGs[,1]) * tmp.m,na.rm=TRUE)
-mScore$TNSC=TNSC[as.vector(mScore$SampleID)]
-mScore$TNSC2=TNSC2[as.vector(mScore$SampleID)]
+mScore$TNSC=TNSC[as.character(mScore$SampleID)]
+mScore$TNSC2=TNSC2[as.character(mScore$SampleID)]
 
 #Zhang 10 CpG clock
-Zhang_10_CpG=Zhang_10_CpG[as.vector(Zhang_10_CpG$Marker) %in% rownames(datMeth2),]
-Zhang10CpG=colSums(Zhang_10_CpG$coef * datMeth2[as.vector(Zhang_10_CpG$Marker),],na.rm=T)
-mScore$Zhang10CpG=Zhang10CpG[as.vector(mScore$SampleID)]
+Zhang_10_CpG=Zhang_10_CpG[as.character(Zhang_10_CpG$Marker) %in% rownames(datMeth2), , drop = FALSE]
+Zhang10CpG=colSums(Zhang_10_CpG$coef * datMeth2[as.character(Zhang_10_CpG$Marker), , drop = FALSE],na.rm=T)
+mScore$Zhang10CpG=Zhang10CpG[as.character(mScore$SampleID)]
 
 #Horvath2
-Horvath2_CpGs=Horvath2_CpGs[as.vector(Horvath2_CpGs$ID) %in% rownames(datMeth2),]
-Horvath2=anti.trafo(colSums(Horvath2_CpGs$Coef * datMeth2[as.vector(Horvath2_CpGs$ID),],na.rm=T)-0.447119319)
-mScore$Horvath2=Horvath2[as.vector(mScore$SampleID)]
+Horvath2_CpGs=Horvath2_CpGs[as.character(Horvath2_CpGs$ID) %in% rownames(datMeth2), , drop = FALSE]
+Horvath2=anti.trafo(colSums(Horvath2_CpGs$Coef * datMeth2[as.character(Horvath2_CpGs$ID), , drop = FALSE],na.rm=T)-0.447119319)
+mScore$Horvath2=Horvath2[as.character(mScore$SampleID)]
 
 #MiAge mitotic age
-#function used by the original MiAge code found <http://www.columbia.edu/~sw2206/softwares.htm>
+#function used by the original MiAge code http://www.columbia.edu/~sw2206/softwares.htm
 MiAge_fr2 <- function (x, b, c, d, betaj)
 {
     nj = x
@@ -383,141 +397,161 @@ mitotic.age <- function (beta, b, c, d)
     return(n)
 }
 
-MiAge=mitotic.age(datMeth2[na.omit(match(MiAgedat$MiAge_CpGs$CpGs,rownames(datMeth2))),],MiAgedat$MiAge_parameters[[1]],MiAgedat$MiAge_parameters[[2]],MiAgedat$MiAge_parameters[[3]])
-mScore$MiAge=MiAge[as.vector(mScore$SampleID)]
+MiAge=mitotic.age(
+		  datMeth2[na.omit(match(MiAgedat$MiAge_CpGs$CpGs,
+		  rownames(datMeth2))),,drop=FALSE],MiAgedat$MiAge_parameters[[1]],
+		  MiAgedat$MiAge_parameters[[2]],
+		  MiAgedat$MiAge_parameters[[3]])
+mScore$MiAge=MiAge[as.character(mScore$SampleID)]
 
 #PedBE The Pediatric-Buccal-Epigenetic (PedBE) clock
 PEDBE_CpGs=PEDBE_CpGs[PEDBE_CpGs$ID %in% rownames(datMeth2),]
-PedBE=anti.trafo(colSums(PEDBE_CpGs$Coef * datMeth2[as.vector(PEDBE_CpGs$ID),],na.rm=T)-2.10)
-mScore$PedBE=PedBE[as.vector(mScore$SampleID)]
+PedBE=anti.trafo(colSums(PEDBE_CpGs$Coef * datMeth2[as.character(PEDBE_CpGs$ID),,drop=FALSE],na.rm=T)-2.10)
+mScore$PedBE=PedBE[as.character(mScore$SampleID)]
 
 #Placental epigenetic clocks
 #Control placental clock (CPC)
 GACPC_CpGs=GACPC_CpGs[GACPC_CpGs$CpG %in% rownames(datMeth2),]
-GACPC=colSums(GACPC_CpGs$coef * datMeth2[as.vector(GACPC_CpGs$CpG),],na.rm = T)+13.06182
-mScore$GACPC=GACPC[as.vector(mScore$SampleID)]
+GACPC=colSums(GACPC_CpGs$coef * datMeth2[as.character(GACPC_CpGs$CpG),,drop=FALSE],na.rm = T)+13.06182
+mScore$GACPC=GACPC[as.character(mScore$SampleID)]
 
 #Robust placental clock (RPC)
 GARPC_CpGs=GARPC_CpGs[GARPC_CpGs$CpG %in% rownames(datMeth2),]
-GARPC=colSums(GARPC_CpGs$coef * datMeth2[as.vector(GARPC_CpGs$CpG),], na.rm = T)+24.99772
-mScore$GARPC=GARPC[as.vector(mScore$SampleID)]
+GARPC=colSums(GARPC_CpGs$coef * datMeth2[as.character(GARPC_CpGs$CpG),,drop=FALSE], na.rm = T)+24.99772
+mScore$GARPC=GARPC[as.character(mScore$SampleID)]
 
 #Refined robust placental clock for uncomplicated term pregnancies
 GARRPC_CpGs=GARRPC_CpGs[GARRPC_CpGs$CpG %in% rownames(datMeth2),]
-GARRPC=colSums(GARRPC_CpGs$coef * datMeth2[as.vector(GARRPC_CpGs$CpG),], na.rm = T)+ 30.74966
-mScore$GARRPC=GARRPC[as.vector(mScore$SampleID)]
+GARRPC=colSums(GARRPC_CpGs$coef * datMeth2[as.character(GARRPC_CpGs$CpG),,drop=FALSE], na.rm = T)+ 30.74966
+mScore$GARRPC=GARRPC[as.character(mScore$SampleID)]
 
 #Bohlin Gestational age
 Bohlin_CpGs=Bohlin_CpGs[Bohlin_CpGs$CpG %in% rownames(datMeth2),]
-BohlinGAge=colSums(Bohlin_CpGs$coef * datMeth2[as.vector(Bohlin_CpGs$CpG),],na.rm=T)+ 277.2421
-mScore$BohlinGAge=BohlinGAge[as.vector(mScore$SampleID)]
+BohlinGAge=colSums(Bohlin_CpGs$coef * datMeth2[as.character(Bohlin_CpGs$CpG),,drop=FALSE],na.rm=T)+ 277.2421
+mScore$BohlinGAge=BohlinGAge[as.character(mScore$SampleID)]
 
 #Knight Gestational age
 Knight_CpGs=Knight_CpGs[Knight_CpGs$CpG %in% rownames(datMeth2),]
-KnightGAge=colSums(Knight_CpGs$coef * datMeth2[as.vector(Knight_CpGs$CpG),],na.rm=T) + 41.7
-mScore$KnightGAge=KnightGAge[as.vector(mScore$SampleID)]
+KnightGAge=colSums(Knight_CpGs$coef * datMeth2[as.character(Knight_CpGs$CpG),,drop=FALSE],na.rm=T) + 41.7
+mScore$KnightGAge=KnightGAge[as.character(mScore$SampleID)]
 
-#######################################
 #PC clocks
 modelcg=names(pcc$pcCpGs)
 missedcg=modelcg[!(modelcg %in% rownames(datMeth))]
 refdat=data.frame(cg=names(pcc$pcCpGs),meth_mean=pcc$pcCpGs)
-#If user provied reference data include all modelcg, then use UserRef
-if(!is.null(UserRef) & ForceUserRef){
-    tmp=modelcg[!modelcg %in% as.vector(UserRef$cg)]
-    if(length(tmp)==0){refdat=UserRef}else{
-            message(paste0("The following model required CpGs are missing in UserRef:"))
-            message(paste0(tmp,collaps=" "))
-            message("System reference were used for all PC clocks")
-    }
-}
-datMeth2=norm_imputing(datMeth,refdat=refdat,normalize,missedcg)
+datMeth2=norm_impute(datMeth,refdat=refdat,normalize,missedcg)
 
 if(!is.null(datPheno)){
     pcclock=calcPCClocks(methdat=datMeth2,phenodat=datPheno,pcc)
     pcclock=pcclock[,!(names(pcclock) %in% c("Age","Female"))]
-    mScore=merge(mScore,pcclock,by="SampleID")
+    mScore <- cbind(mScore, pcclock[match(mScore$SampleID, pcclock$SampleID), setdiff(colnames(pcclock), "SampleID"),drop=FALSE])
 }
 
-#########################################
+# Calculate GrimAge Clocks
+# adopted code from methylCIPHER
+modelcg <- GrimAge_CpG
+missedcg <- setdiff(modelcg, rownames(datMeth))
+datMeth2=norm_impute(datMeth,refdat=refmeth2,normalize,missedcg)
+if(!is.null(datPheno)){
+DNAm <- datMeth2[GrimAge_CpG, , drop = FALSE]
+pp <- datPheno
+rownames(pp)=pp$SampleID
+DNAm <- DNAm [,rownames(pp),drop=FALSE]
+DNAm <- rbind(DNAm, Age= pp[colnames(DNAm), "Age"])
+pp$DNAmPACKYRS <- drop(GrimAgeV1_model$PACKYRS.model %*% DNAm[names(GrimAgeV1_model$PACKYRS.model),,drop = FALSE]) + GrimAgeV1_model$PACKYRS.intercept
+pp$DNAmADM <- drop(GrimAgeV1_model$ADM.model %*% DNAm[names(GrimAgeV1_model$ADM.model), , drop = FALSE]) +  GrimAgeV1_model$ADM.intercept
+pp$DNAmB2M <- drop(GrimAgeV1_model$B2M.model %*% DNAm[names(GrimAgeV1_model$B2M.model), , drop = FALSE]) +  GrimAgeV1_model$B2M.intercept
+pp$DNAmCystatinC <- drop(GrimAgeV1_model$CystatinC.model %*% DNAm[names(GrimAgeV1_model$CystatinC.model), , drop = FALSE]) +  GrimAgeV1_model$CystatinC.intercept
+pp$DNAmGDF15 <- drop(GrimAgeV1_model$GDF15.model %*% DNAm[names(GrimAgeV1_model$GDF15.model), , drop = FALSE]) +  GrimAgeV1_model$GDF15.intercept
+pp$DNAmLeptin <- drop(GrimAgeV1_model$Leptin.model %*% DNAm[names(GrimAgeV1_model$Leptin.model), , drop = FALSE]) +  GrimAgeV1_model$Leptin.intercept
+pp$DNAmPAI1 <- drop(GrimAgeV1_model$PAI1.model %*% DNAm[names(GrimAgeV1_model$PAI1.model), , drop = FALSE]) +  GrimAgeV1_model$PAI1.intercept
+pp$DNAmTIMP1 <- drop(GrimAgeV1_model$TIMP1.model %*% DNAm[names(GrimAgeV1_model$TIMP1.model), , drop = FALSE]) +  GrimAgeV1_model$TIMP1.intercept
+pp$GrimAgeV1 <- drop(as.matrix(pp[, GrimAgeV1_model$components, drop = FALSE]) %*%    GrimAgeV1_model$GrimAge.model)
+y <- pp$GrimAgeV1
+pp$GrimAgeV1 <- (((y - GrimAgeV1_model$GrimAge.transform[3]) /  GrimAgeV1_model$GrimAge.transform[4]) *  GrimAgeV1_model$GrimAge.transform[2]) +  GrimAgeV1_model$GrimAge.transform[1]
+pp$DNAmlogA1C <- drop(GrimAgeV2_model$logA1C.model %*% DNAm[names(GrimAgeV2_model$logA1C.model), , drop = FALSE]) +  GrimAgeV2_model$logA1C.intercept
+pp$DNAmlogCRP <- drop(GrimAgeV2_model$logCRP.model %*% DNAm[names(GrimAgeV2_model$logCRP.model), , drop = FALSE]) +  GrimAgeV2_model$logCRP.intercept
+pp$GrimAgeV2 <- drop(as.matrix(pp[, GrimAgeV2_model$components, drop = FALSE]) %*%    GrimAgeV2_model$GrimAge.model)
+y <- pp$GrimAgeV2
+pp$GrimAgeV2 <- (((y - GrimAgeV2_model$GrimAge.transform[3]) /  GrimAgeV2_model$GrimAge.transform[4]) *  GrimAgeV2_model$GrimAge.transform[2]) +  GrimAgeV2_model$GrimAge.transform[1]
+pp <- pp[match(mScore$SampleID, rownames(pp)), , drop = FALSE]
+mScore <- cbind( mScore, pp[, !(colnames(pp) %in% c("Age", "Female", "SampleID")), drop = FALSE])
+}
+
+
+#reference value for AdaptAge CausAge DamAge are in refmeth2
+modelcg <- c(AdaptAge_model$CpG,CausAge_model$CpG,DamAge_model$CpG)
+missedcg <- setdiff(modelcg, rownames(datMeth))
+datMeth2=norm_impute(datMeth,refdat=refmeth2,normalize,missedcg)
+#AdaptAge
+AdaptAge <- drop(AdaptAge_model$Beta %*% datMeth2[AdaptAge_model$CpG,,drop=FALSE]) - 511.9742762
+mScore$AdaptAge <- AdaptAge[match(mScore$SampleID,names(AdaptAge))]
+
+#CausAge
+CausAge <- drop(CausAge_model$Beta %*% datMeth2[CausAge_model$CpG,,drop=FALSE]) + 86.80816381
+mScore$CausAge <- CausAge[match(mScore$SampleID,names(CausAge))]
+
+#DamAge
+DamAge <- drop(DamAge_model$Beta %*% datMeth2[DamAge_model$CpG,,drop=FALSE]) + 543.4315887
+mScore$DamAge <- DamAge[match(mScore$SampleID,names(DamAge))]
+
+
 #cAge and bAge
-modelcg=unique(as.vector(cAge_CpG$means$cpg))
+modelcg=unique(as.character(cAge_CpG$means$cpg))
 missedcg=modelcg[!(modelcg %in% rownames(datMeth))]
-refdat=data.frame(cg=as.vector(cAge_CpG$means$cpg),meth_mean=cAge_CpG$means$mean)
-#If user provied reference data include all modelcg, then use UserRef
-if(!is.null(UserRef) & ForceUserRef){
-    tmp=modelcg[!modelcg %in% as.vector(UserRef$cg)]
-    if(length(tmp)==0){refdat=UserRef}else{
-            message(paste0("The following model required CpGs are missing in UserRef:"))
-            message(paste0(tmp,collaps=" "))
-            message("System reference were used for cAge, bAge and bAge_Years")
-    }
-}
-datMeth2=norm_imputing(datMeth,refdat=refdat,normalize,missedcg)
+refdat=data.frame(cg=as.character(cAge_CpG$means$cpg),meth_mean=cAge_CpG$means$mean)
+datMeth2=norm_impute(datMeth,refdat=refdat,normalize,missedcg)
+mScore$cAge=calc_cAge(datMeth2,cAge_CpG)[as.character(mScore$SampleID)]
 
-mScore$cAge=calc_cAge(datMeth2,cAge_CpG)[as.vector(mScore$SampleID)]
-
-#######################################
 #use episcore reference data for bAge
-modelcg=unique(as.vector(bAge_CpG$cpgs$CpG_Site))
+modelcg=unique(as.character(bAge_CpG$cpgs$CpG_Site))
 missedcg=modelcg[!(modelcg %in% rownames(datMeth))]
 tmp0=episcore_model[!duplicated(episcore_model$CpG_Site),]
 refdat=data.frame(cg=tmp0$CpG_Site,meth_mean=tmp0$Mean_Beta_Value)
-datMeth2=norm_imputing(datMeth,refdat=refdat,normalize,missedcg)
-
-tmp=calc_bAge(datMeth2,datPheno,mScore,bAge_CpG,GrimAgeComponent)[as.vector(mScore$SampleID),]
+datMeth2=norm_impute(datMeth,refdat=refdat,normalize,missedcg)
+tmp=calc_bAge(datMeth2,datPheno,mScore,bAge_CpG,GrimAgeComponent)[as.character(mScore$SampleID),]
 mScore$bAge=tmp$bAge
 mScore$bAge_Years=tmp$bAge_Years
 
-
-##########################################
 #episcore
-modelcg=unique(as.vector(episcore_model$CpG_Site))
+modelcg=unique(as.character(episcore_model$CpG_Site))
 missedcg=modelcg[!(modelcg %in% rownames(datMeth))]
 tmp0=episcore_model[!duplicated(episcore_model$CpG_Site),]
 refdat=data.frame(cg=tmp0$CpG_Site,meth_mean=tmp0$Mean_Beta_Value)
-#If user provied reference data include all modelcg, then use UserRef
-if(!is.null(UserRef) & ForceUserRef){
-    tmp=modelcg[!modelcg %in% as.vector(UserRef$cg)]
-    if(length(tmp)==0){refdat=UserRef}else{
-            message(paste0("The following model required CpGs are missing in UserRef:"))
-            message(paste0(tmp,collaps=" "))
-            message("System reference were used for all episcores")
-    }
-}
-datMeth2=norm_imputing(datMeth,refdat=refdat,normalize,missedcg)
+datMeth2=norm_impute(datMeth,refdat=refdat,normalize,missedcg)
 
 out <- data.frame(SampleID=colnames(datMeth2))
 for(i in unique(episcore_model$Predictor)){
   tmp_coef = episcore_model[episcore_model$Predictor %in% i, ]
   tmp_coef=tmp_coef[tmp_coef$CpG_Site %in% rownames(datMeth2),]
   if(nrow(tmp_coef) > 1) {
-    out[,i]=colSums(tmp_coef$Coefficient * datMeth2[as.vector(tmp_coef$CpG_Site),],na.rm=T)
+    out[,i]=colSums(tmp_coef$Coefficient * datMeth2[as.character(tmp_coef$CpG_Site),],na.rm=T)
   } else {
-    out[,i] = tmp_coef$Coefficient * datMeth2[as.vector(tmp_coef$CpG_Site),]
+    out[,i] = tmp_coef$Coefficient * datMeth2[as.character(tmp_coef$CpG_Site),]
   }
 }
 out$'Epigenetic Age (Zhang)' <- out$'Epigenetic Age (Zhang)' + 65.79295
+mScore <- cbind(mScore, out[match(mScore$SampleID, out$SampleID), setdiff(colnames(out), "SampleID"), drop = FALSE])
 
-mScore=merge(mScore,out,by="SampleID")
-
-#####################################
 #DNAmFitAge
 FitAge=calc_DNAmFitAge(datMeth,datPheno,mScore,GrimAgeComponent,DNAmFitnessModels)
-mScore=merge(mScore,FitAge,by="SampleID")
+mScore <- cbind(mScore, FitAge[match(mScore$SampleID, FitAge$SampleID), setdiff(colnames(FitAge), "SampleID"), drop = FALSE])
+
+
 
 #column order
-mScore=mScore[,c("SampleID",as.vector(methscore_dict$predictor))]
+mScore=mScore[,c("SampleID",as.character(methscore_dict$predictor))]
 ###################Age residuals
+if(AgeResid){
 if(!is.null(datPheno)){
     rownames(datPheno)=datPheno$SampleID
-    datPheno=datPheno[as.vector(mScore$SampleID),]
+    datPheno=datPheno[as.character(mScore$SampleID),]
     clockColumns=colnames(mScore)[!(colnames(mScore)=="SampleID")]
     mScore[,"Age"] = datPheno$Age
     for (i in clockColumns){
         mScore[,paste0(i,"Resid")] = resid(lm(mScore[,i] ~ datPheno$Age))
     }
-}
+}}
 return(mScore)
 }
 
@@ -595,7 +629,7 @@ rownames(coef_log)=coef_log$CpG_Site
 
 data <- data[rownames(data) %in% rownames(means),]
 ## impute missing CpGs
-if (!nrow(data)==nrow(means)) {
+if (nrow(data)!=nrow(means)) {
     missing_cpgs <- means[!rownames(means) %in% rownames(data),]
     mat=matrix(rep(missing_cpgs$mean,ncol(data)),ncol=ncol(data))
     rownames(mat)=rownames(missing_cpgs)
@@ -607,15 +641,15 @@ na_to_mean <-function(x) {x[is.na(x)] <- mean(x, na.rm=T);x}
 data <- t(apply(data,1,na_to_mean))
 
 ## Prep for linear predictor
-cg1=as.vector(coef_linear$CpG_Site[-grep('_2', coef_linear$CpG_Site)])
-cg2=as.vector(coef_linear$CpG_Site[grep('_2', coef_linear$CpG_Site)])
+cg1=as.character(coef_linear$CpG_Site[-grep('_2', coef_linear$CpG_Site)])
+cg2=as.character(coef_linear$CpG_Site[grep('_2', coef_linear$CpG_Site)])
 cg2=gsub("_2","",cg2)
 tmp <- data[cg2,]^2;rownames(tmp)=paste0(rownames(tmp),"_2")
 scores_linear <- rbind(data[cg1,],tmp)
 
 ## Prep for log predictor
-cg1=as.vector(coef_log$CpG_Site[-grep('_2', coef_log$CpG_Site)])
-cg2=as.vector(coef_log$CpG_Site[grep('_2', coef_log$CpG_Site)])
+cg1=as.character(coef_log$CpG_Site[-grep('_2', coef_log$CpG_Site)])
+cg2=as.character(coef_log$CpG_Site[grep('_2', coef_log$CpG_Site)])
 cg2=gsub("_2","",cg2)
 tmp <- data[cg2,]^2;rownames(tmp)=paste0(rownames(tmp),"_2")
 scores_log <- rbind(data[cg1,],tmp)
@@ -645,17 +679,17 @@ rownames(phenodat)=phenodat$SampleID
 cpgs=bAge_CpG$cpgs
 coefficients=bAge_CpG$coefficients
 ##standardize CpG by CpG
-coef <- data[rownames(data) %in% as.vector(cpgs$CpG_Site),]
+coef <- data[rownames(data) %in% as.character(cpgs$CpG_Site),]
 ids <- colnames(coef)
 coef <- t(apply(coef, 1, scale))
 colnames(coef) <- ids
 
 ##impute missing CpGs
-if (!nrow(coef)==length(unique(cpgs$CpG_Site))) {
+if (nrow(coef) != length(unique(cpgs$CpG_Site))) {
     missing_cpgs = cpgs[-which(cpgs$CpG_Site %in% rownames(coef)), c("CpG_Site", "Mean_Beta_Value")]
-    missing_cpgs=missing_cpgs[!duplicated(as.vector(missing_cpgs$CpG_Site)),]
+    missing_cpgs=missing_cpgs[!duplicated(as.character(missing_cpgs$CpG_Site)),]
     mat=matrix(rep(missing_cpgs$Mean_Beta_Value,ncol(coef)),ncol=ncol(coef))
-    rownames(mat)=as.vector(missing_cpgs$CpG_Site)
+    rownames(mat)=as.character(missing_cpgs$CpG_Site)
     colnames(mat)=colnames(coef)
     coef = rbind(coef,mat)
 }
@@ -671,7 +705,7 @@ loop <- unique(cpgs$Predictor)
 out <- data.frame()
 for(i in loop){
   tmp_coef = cpgs[cpgs$Predictor %in% i, ]
-  tmp=coef[as.vector(tmp_coef$CpG_Site),]
+  tmp=coef[as.character(tmp_coef$CpG_Site),]
   if(nrow(tmp_coef) > 1) {
     out[colnames(coef),i]=colSums(tmp_coef$Coefficient*tmp,na.rm=T)
   } else {
@@ -682,8 +716,8 @@ for(i in loop){
 ###### Standadize GrimAge components
 samples <- rownames(out)
 grim_pred <- grim[samples, c("DNAmGrimAge"), drop = FALSE]
-if(!is.null(GrimAgeComponent)){
-  grim <- GrimAgeComponent[samples, c("DNAmADM", "DNAmB2M", "DNAmCystatinC", "DNAmGDF15", "DNAmLeptin", "DNAmPACKYRS", "DNAmPAI1", "DNAmTIMP1")]
+if(GrimAgeComponent %in% c(1,2)){
+  grim <- grim[samples, c("DNAmADM", "DNAmB2M", "DNAmCystatinC", "DNAmGDF15", "DNAmLeptin", "DNAmPACKYRS", "DNAmPAI1", "DNAmTIMP1")]
 }else{
     grim <- grim[samples, c("PCADM", "PCB2M", "PCCystatinC", "PCGDF15", "PCLeptin", "PCPACKYRS", "PCPAI1", "PCTIMP1")]
 }
@@ -722,8 +756,15 @@ return(pred)
 #######DNAmFitAge begin
 calc_DNAmFitAge<-function(datMeth,datPheno,mScore,GrimAgeComponent,DNAmFitnessModels){
 
-	if(!is.null(GrimAgeComponent)){grim1=GrimAgeComponent[,c("SampleID","DNAmGrimAge")]}else{
-        grim1=mScore[,c("SampleID","PCGrimAge")];names(grim1)[2]="DNAmGrimAge"}
+	if (GrimAgeComponent == 1) {
+           grim1 <- mScore[, c("SampleID", "GrimAgeV1")]
+        } else if (GrimAgeComponent == 2) {
+           grim1 <- mScore[, c("SampleID", "GrimAgeV2")]
+        } else {
+           grim1 <- mScore[, c("SampleID", "PCGrimAge")]
+	}
+        names(grim1)[2] <- "DNAmGrimAge"
+
 	pheno=merge(datPheno,grim1,by="SampleID")
 	pheno=pheno[,c("SampleID","Age","Female","DNAmGrimAge")]
 	rownames(pheno)=pheno$SampleID
@@ -741,12 +782,12 @@ data_prep <- function(dataset,pheno){
       dataset=dataset[,cid];pheno=pheno[cid,]
       if(sum(pheno$Female==1)>0){
          dat <- dataset[,pheno$Female == 1]
-         dat=rbind(dat,matrix(rep(DNAmFitnessModels$Female_Medians_All[cpgs_toadd],ncol(dat)),ncol=ncol(dat),dimnames=list(cpgs_toadd,colnames(dat))))
+         dat=rbind(as.matrix(dat),matrix(rep(DNAmFitnessModels$Female_Medians_All[cpgs_toadd],ncol(dat)),ncol=ncol(dat),dimnames=list(cpgs_toadd,colnames(dat))))
          output=cbind(output,dat)
       }
       if(sum(pheno$Female==0)>0){
          dat <- dataset[,pheno$Female == 0]
-         dat=rbind(dat,matrix(rep(DNAmFitnessModels$Male_Medians_All[cpgs_toadd],ncol(dat)),ncol=ncol(dat),dimnames=list(cpgs_toadd,colnames(dat))))
+         dat=rbind(as.matrix(dat),matrix(rep(DNAmFitnessModels$Male_Medians_All[cpgs_toadd],ncol(dat)),ncol=ncol(dat),dimnames=list(cpgs_toadd,colnames(dat))))
          output=cbind(output,dat)
       }
 
@@ -760,7 +801,7 @@ data_prep <- function(dataset,pheno){
 DNAmEstimatorAnyModel <- function(dataset, TidyModel){
   intercept=matrix(rep(1.0, ncol(dataset)),ncol=ncol(dataset),dimnames=list("(Intercept)",colnames(dataset)))
   dataset=rbind(intercept,dataset)
-  dataset <- dataset[as.vector(TidyModel$term),]
+  dataset <- dataset[as.character(TidyModel$term),]
   dm=dimnames(dataset)
   dataset=matrix(as.numeric(dataset),nrow=nrow(dataset))
   dimnames(dataset)=dm
