@@ -316,7 +316,7 @@ datMeth2=norm_impute(datMeth,refdat=refdat,normalize,missedcg)
 
 #DNAmTL
 DNAmTL_CpGs=DNAmTL_CpGs[DNAmTL_CpGs$ID %in% rownames(datMeth2), , drop = FALSE]
-DNAmTL=colSums(DNAmTL_CpGs$Coef * datMeth2[as.character(DNAmTL_CpGs$ID), , drop = FALSE],na.rm=TRUE)-7.924780053
+DNAmTL=colSums(DNAmTL_CpGs$Coef * datMeth2[as.character(DNAmTL_CpGs$ID), , drop = FALSE],na.rm=TRUE)+7.924780053
 mScore$DNAmTL=DNAmTL[as.character(mScore$SampleID)]
 
 #EpiTOC
