@@ -24,7 +24,7 @@ rcp <- function(mdat,dist=25,quantile.grid=seq(0.001,0.999,by=0.001),
     anno1=annotation[1:(nrow(annotation)-1),]
     anno2=annotation[2:nrow(annotation),]
 
-    if("anno1$Relation_to_Island" %in% names(anno1)){
+    if("Relation_to_Island" %in% names(anno1)){
     flag=(abs(anno1$pos-anno2$pos)<dist & anno1$chr==anno2$chr & 
      anno1$Relation_to_Island==anno2$Relation_to_Island & anno1$Type !=
      anno2$Type)
@@ -32,8 +32,8 @@ rcp <- function(mdat,dist=25,quantile.grid=seq(0.001,0.999,by=0.001),
     flag=(abs(anno1$pos-anno2$pos)<dist & anno1$chr==anno2$chr &
      anno1$Type !=  anno2$Type)
     }
-    anno1=anno1[flag,]
-    anno2=anno2[flag,]
+    anno1=anno1[!is.na(flag) & flag,]
+    anno2=anno2[!is.na(flag) & flag,]
     probe.I=anno1$Name
     probe.II=anno2$Name
     probe.I[anno2$Type=="I"]=anno2$Name[anno2$Type=="I"]
