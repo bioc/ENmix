@@ -781,12 +781,12 @@ data_prep <- function(dataset,pheno){
       cid=intersect(colnames(dataset), rownames(pheno))
       dataset=dataset[,cid];pheno=pheno[cid,]
       if(sum(pheno$Female==1)>0){
-         dat <- dataset[,pheno$Female == 1]
+         dat <- dataset[,pheno$Female == 1, drop = FALSE]
          dat=rbind(as.matrix(dat),matrix(rep(DNAmFitnessModels$Female_Medians_All[cpgs_toadd],ncol(dat)),ncol=ncol(dat),dimnames=list(cpgs_toadd,colnames(dat))))
          output=cbind(output,dat)
       }
       if(sum(pheno$Female==0)>0){
-         dat <- dataset[,pheno$Female == 0]
+         dat <- dataset[,pheno$Female == 0, drop = FALSE]
          dat=rbind(as.matrix(dat),matrix(rep(DNAmFitnessModels$Male_Medians_All[cpgs_toadd],ncol(dat)),ncol=ncol(dat),dimnames=list(cpgs_toadd,colnames(dat))))
          output=cbind(output,dat)
       }
@@ -801,7 +801,7 @@ data_prep <- function(dataset,pheno){
 DNAmEstimatorAnyModel <- function(dataset, TidyModel){
   intercept=matrix(rep(1.0, ncol(dataset)),ncol=ncol(dataset),dimnames=list("(Intercept)",colnames(dataset)))
   dataset=rbind(intercept,dataset)
-  dataset <- dataset[as.character(TidyModel$term),]
+  dataset <- dataset[as.character(TidyModel$term),, drop = FALSE]
   dm=dimnames(dataset)
   dataset=matrix(as.numeric(dataset),nrow=nrow(dataset))
   dimnames(dataset)=dm
@@ -816,7 +816,7 @@ DNAmFitnessEstimators <- function(data, pheno){
   data=rbind(t(pheno),data)
 
   if(sum(pheno$Female ==1)>0){
-  data_fem <- data[,pheno$Female ==1]
+  data_fem <- data[,pheno$Female ==1, drop = FALSE]
   fem_est1 <- DNAmEstimatorAnyModel(dataset = data_fem, TidyModel = DNAmFitnessModels$Gait_noAge_Females) # gait without age
   fem_est2 <- DNAmEstimatorAnyModel(dataset = data_fem, TidyModel = DNAmFitnessModels$Grip_noAge_Females) # grip
   fem_est3 <- DNAmEstimatorAnyModel(dataset = data_fem, TidyModel = DNAmFitnessModels$VO2maxModel) # vo2max
@@ -825,7 +825,7 @@ DNAmFitnessEstimators <- function(data, pheno){
   fem_est6 <- DNAmEstimatorAnyModel(dataset = data_fem, TidyModel = DNAmFitnessModels$FEV1_wAge_Females) # fev1 w age
   }
   if(sum(pheno$Female ==0)>0){
-  data_male <- data[,pheno$Female ==0]
+  data_male <- data[,pheno$Female ==0, drop = FALSE]
   male_est1 <- DNAmEstimatorAnyModel(dataset = data_male, TidyModel = DNAmFitnessModels$Gait_noAge_Males) # gait
   male_est2 <- DNAmEstimatorAnyModel(dataset = data_male, TidyModel = DNAmFitnessModels$Grip_noAge_Males) # grip
   male_est3 <- DNAmEstimatorAnyModel(dataset = data_male, TidyModel = DNAmFitnessModels$VO2maxModel) # vo2max
